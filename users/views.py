@@ -4,6 +4,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import User
 
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+
 
 otp_storage = {}  # временный in-memory store
 
@@ -46,3 +50,22 @@ class VerifyOTPView(APIView):
             "full_name": user.full_name
         }, status=200)
 
+
+@api_view(['POST'])
+def get_token_for_verified_user(request):
+    phone = request.data.get("phone_number")
+
+    try:
+        user = User.objects.get(phone_number=phone, is_verified=True)
+    except User.DoesNotExist:
+        return Response({"error": "User not found or not verified"}, status=404)
+
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+        'user_id': user.id,
+        'full_name': user.full_name,
+        'is_driver': user.is_driver,
+    })
