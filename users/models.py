@@ -25,21 +25,29 @@ class UserManager(BaseUserManager):
         if not phone_number:
             raise ValueError("Users must have a phone number")
         user = self.model(phone_number=phone_number, full_name=full_name)
-        user.set_unusable_password()  # потому что логинимся по OTP
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()  # для юзеров без пароля (OTP)
         user.save(using=self._db)
         return user
 
     def create_superuser(self, phone_number, full_name="Admin", password=None):
-        user = self.create_user(phone_number, full_name)
+        if not password:
+            raise ValueError("Superuser must have a password.")
+        user = self.create_user(phone_number, full_name, password)
         user.is_staff = True
         user.is_superuser = True
+        user.is_active = True
         user.save(using=self._db)
         return user
+
 
 
 class User(AbstractBaseUser, PermissionsMixin):
     phone_number = models.CharField(max_length=20, unique=True)
     full_name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
     is_driver = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
@@ -49,9 +57,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     license_photo = models.ImageField(upload_to=user_license_path, blank=True, null=True)
 
     is_approved = models.BooleanField(default=False)  # модерация
-
+    
     USERNAME_FIELD = 'phone_number'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['full_name']
+
 
     objects = UserManager()
 
