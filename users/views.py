@@ -7,6 +7,9 @@ from .models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+
+from .serializers import DriverDocumentUploadSerializer
 
 
 otp_storage = {}  # временный in-memory store
@@ -69,3 +72,19 @@ def get_token_for_verified_user(request):
         'full_name': user.full_name,
         'is_driver': user.is_driver,
     })
+
+
+class UploadDriverDocumentsView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        user = request.user
+        if not user.is_driver:
+            return Response({"error": "Only drivers can upload documents."}, status=400)
+
+        serializer = DriverDocumentUploadSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Documents uploaded. Await moderation."})
+        return Response(serializer.errors, status=400)
