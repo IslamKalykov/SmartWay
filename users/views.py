@@ -1,7 +1,8 @@
 import random
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics, permissions
+
 from .models import User
 
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -10,6 +11,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from .serializers import DriverDocumentUploadSerializer
+
+from trips.serializers import ReviewSerializer
+
 
 
 otp_storage = {}  # временный in-memory store
@@ -88,3 +92,12 @@ class UploadDriverDocumentsView(APIView):
             serializer.save()
             return Response({"message": "Documents uploaded. Await moderation."})
         return Response(serializer.errors, status=400)
+    
+
+class UserReviewsAPIView(generics.ListAPIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        user_id = self.kwargs['id']
+        return Review.objects.filter(recipient__id=user_id).order_by('-created_at')

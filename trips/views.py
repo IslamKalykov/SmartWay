@@ -106,3 +106,12 @@ class ReviewCreateAPIView(generics.CreateAPIView):
         # логика, чтобы найти получателя отзыва
         trip = Trip.objects.get(id=trip_id)
         return trip.driver if trip.passenger == author else trip.passenger
+    
+    
+class UserReviewsListAPIView(generics.ListAPIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        user_id = self.kwargs['user_id']
+        return Review.objects.filter(recipient__id=user_id).order_by('-created_at')

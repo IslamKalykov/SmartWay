@@ -41,8 +41,10 @@ INSTALLED_APPS = [
     'rest_framework',
     'users',
     'trips',
+    
     'chat',
-    'channels'
+    'channels',
+    'drf_yasg',
 ]
 
 MEDIA_URL = '/media/'
@@ -106,6 +108,18 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'Добавь `Bearer <токен>`'
+        }
+    },
+}
+
 
 
 # Password validation
