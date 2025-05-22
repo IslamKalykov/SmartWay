@@ -1,12 +1,13 @@
 from rest_framework import generics, permissions
-from .models import Trip
-from .serializers import TripSerializer
+from .models import Trip, Review
+from .serializers import TripSerializer, ReviewSerializer
 from datetime import datetime
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import NotFound
 from rest_framework.decorators import action
 from rest_framework import viewsets
 
@@ -77,3 +78,31 @@ class PublishedTripsAPIView(APIView):
         trips = Trip.objects.filter(passenger=user)
         serializer = TripSerializer(trips, many=True)
         return Response(serializer.data)
+    
+    
+class ReviewCreateAPIView(generics.CreateAPIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        try:
+            trip = Trip.objects.get(id=self.request.data['trip'])
+        except Trip.DoesNotExist:
+            raise NotFound("Поездка не найдена.")
+
+        if self.request.user != trip.passenger and self.request.user != trip.driver:
+            raise serializers.ValidationError("Вы не участвовали в этой поездке.")
+
+        recipient = trip.driver if self.request.user == trip.passenger else trip.passenger
+        serializer.save(author=self.request.user, recipient=recipient)
+        
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def get_recipient(self, trip_id, author):
+        # логика, чтобы найти получателя отзыва
+        trip = Trip.objects.get(id=trip_id)
+        return trip.driver if trip.passenger == author else trip.passenger

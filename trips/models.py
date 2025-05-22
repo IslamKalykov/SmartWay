@@ -42,3 +42,16 @@ class Trip(models.Model):
         return f"{self.passenger.full_name} — {self.from_location} → {self.to_location}"
 
 
+class Review(models.Model):
+    trip = models.ForeignKey("Trip", on_delete=models.CASCADE, related_name="reviews")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="written_reviews")
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="received_reviews")
+    rating = models.PositiveSmallIntegerField()  # от 1 до 5
+    text = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('trip', 'author')  # Один отзыв от пользователя на поездку
+
+    def __str__(self):
+        return f"Review from {self.author} to {self.recipient} ({self.rating})"

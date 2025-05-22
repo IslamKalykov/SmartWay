@@ -6,6 +6,7 @@ from .views import (
     MyTripsAPIView,
     TakenTripsAPIView,
     PublishedTripsAPIView,
+    ReviewCreateAPIView,
 )
 
 urlpatterns = [
@@ -17,4 +18,7 @@ urlpatterns = [
     path('my/', MyTripsAPIView.as_view(), name='trip-my'),
     path('taken/', TakenTripsAPIView.as_view(), name='trip-taken'),
     path('published/', PublishedTripsAPIView.as_view(), name='trip-published'),
+    
+    # Отзывы
+    path('review/create/', ReviewCreateAPIView.as_view(), name='review-create'),
 ]
