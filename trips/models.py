@@ -13,6 +13,13 @@ class Trip(models.Model):
         CANCELLED = "cancelled", "Отменена"
         EXPIRED = "expired", "Просрочена"
 
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+        db_index=True,
+    )
+
     passenger = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -35,12 +42,6 @@ class Trip(models.Model):
     is_negotiable = models.BooleanField(default=False)
 
     contact_phone = models.CharField(max_length=32, blank=True)
-
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.OPEN,
-    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

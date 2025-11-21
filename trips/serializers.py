@@ -48,27 +48,24 @@ class TripSerializer(serializers.ModelSerializer):
     """Полный сериализатор для retrieve/деталей."""
     passenger_name = serializers.CharField(source="passenger.full_name", read_only=True)
     driver_name = serializers.CharField(source="driver.full_name", read_only=True)
-    passenger_phone = serializers.CharField(source="passenger.phone_number", read_only=True)  # 🔹 новое
+    passenger_phone = serializers.CharField(source="passenger.phone_number", read_only=True)
 
     class Meta:
         model = Trip
         fields = (
             "id",
             "from_location",
-            "to_location",
+            "to_location", 
             "departure_time",
             "passengers_count",
-            "price",
-            "is_negotiable",
+            "price", "is_negotiable",
             "status",
-            "created_at",
-            "passenger",
-            "passenger_name",
-            "passenger_phone",     # 🔹 не забудь сюда
-            "driver",
-            "driver_name",
+            "created_at", "updated_at",
+            "passenger", "passenger_name", "passenger_phone",
+            "driver", "driver_name",
         )
-        read_only_fields = ("status", "created_at", "passenger", "driver")
+        read_only_fields = ("status", "created_at", "updated_at", "passenger", "driver")
+
 
 
 

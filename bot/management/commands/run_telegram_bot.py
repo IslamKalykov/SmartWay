@@ -360,13 +360,146 @@ async def on_menu_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.message.edit_text(text, reply_markup=main_menu_kb(True))
         return ConversationHandler.END
+    
+    if data.startswith("finish_trip:"):
+        access = context.user_data.get("access")
+        if not access:
+            try:
+                await query.message.edit_text(
+                    "Сначала войди по номеру 📲",
+                    reply_markup=main_menu_kb(),
+                )
+            except BadRequest as e:
+                if "message is not modified" not in str(e).lower():
+                    raise
+            return ConversationHandler.END
+
+        try:
+            trip_id = int(data.split(":", 1)[1])
+        except (ValueError, IndexError):
+            await query.message.edit_text(
+                "Некорректный заказ.",
+                reply_markup=main_menu_kb(True),
+            )
+            return ConversationHandler.END
+
+        try:
+            r = await api_post(f"trips/{trip_id}/finish/", json={}, token=access)
+        except Exception as e:
+            logger.exception("trips/finish exception: %s", e)
+            await query.message.edit_text(
+                "Не удалось завершить поездку. Попробуй позже.",
+                reply_markup=main_menu_kb(True),
+            )
+            return ConversationHandler.END
+
+        if r.status_code != 200:
+            logger.warning("finish_trip failed %s %s", r.status_code, r.text)
+            msg = "Не удалось завершить поездку."
+            try:
+                detail = r.json().get("detail")
+                if detail:
+                    msg += f"\n{detail}"
+            except Exception:
+                pass
+
+            await query.message.edit_text(
+                msg,
+                reply_markup=main_menu_kb(True),
+            )
+            return ConversationHandler.END
+
+        trip = r.json()
+        dep = trip.get("departure_time", "").replace("T", " ")[:16]
+
+        text = (
+            "Поездка завершена ✅\n\n"
+            f"#{trip.get('id')} • {trip.get('from_location')} → {trip.get('to_location')}\n"
+            f"Время: {dep}\n"
+            f"Статус: {trip.get('status')}\n\n"
+            "Она исчезнет из активных и переедет в историю."
+        )
+
+        await query.message.edit_text(
+            text,
+            reply_markup=main_menu_kb(True),
+        )
+        return ConversationHandler.END
+
+
+    if data.startswith("cancel_trip:"):
+        access = context.user_data.get("access")
+        if not access:
+            try:
+                await query.message.edit_text(
+                    "Сначала войди по номеру 📲",
+                    reply_markup=main_menu_kb(),
+                )
+            except BadRequest as e:
+                if "message is not modified" not in str(e).lower():
+                    raise
+            return ConversationHandler.END
+
+        try:
+            trip_id = int(data.split(":", 1)[1])
+        except (ValueError, IndexError):
+            await query.message.edit_text(
+                "Некорректный заказ.",
+                reply_markup=main_menu_kb(True),
+            )
+            return ConversationHandler.END
+
+        try:
+            r = await api_post(f"trips/{trip_id}/release/", json={}, token=access)
+        except Exception as e:
+            logger.exception("trips/release exception: %s", e)
+            await query.message.edit_text(
+                "Не удалось вернуть поездку в общий список. Попробуй позже.",
+                reply_markup=main_menu_kb(True),
+            )
+            return ConversationHandler.END
+
+        if r.status_code != 200:
+            logger.warning("cancel_trip failed %s %s", r.status_code, r.text)
+            msg = "Не удалось отказаться от поездки."
+            try:
+                detail = r.json().get("detail")
+                if detail:
+                    msg += f"\n{detail}"
+            except Exception:
+                pass
+
+            await query.message.edit_text(
+                msg,
+                reply_markup=main_menu_kb(True),
+            )
+            return ConversationHandler.END
+
+        trip = r.json()
+        dep = trip.get("departure_time", "").replace("T", " ")[:16]
+
+        text = (
+            "Ты отказался от заказа ❌\n\n"
+            f"#{trip.get('id')} • {trip.get('from_location')} → {trip.get('to_location')}\n"
+            f"Время: {dep}\n"
+            "Заказ снова доступен другим водителям."
+        )
+
+        await query.message.edit_text(
+            text,
+            reply_markup=main_menu_kb(True),
+        )
+        return ConversationHandler.END
+
+
 
     if data == "drv_my_active":
         access = context.user_data.get("access")
         if not access:
             try:
                 await query.message.edit_text(
-                    "Сначала войди по номеру 📲", reply_markup=main_menu_kb()
+                    "Сначала войди по номеру 📲",
+                    reply_markup=main_menu_kb(),
                 )
             except BadRequest as e:
                 if "message is not modified" not in str(e).lower():
@@ -387,17 +520,46 @@ async def on_menu_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not trips:
             text = "У тебя сейчас нет активных заказов."
+            kb = main_menu_kb(True)
         else:
             lines = ["📋 Твои активные заказы:"]
+            buttons = []
             for t in trips:
+                trip_id = t.get("id")
                 dep = t.get("departure_time", "").replace("T", " ")[:16]
-                lines.append(
-                    f"#{t.get('id')} • {t.get('from_location')} → {t.get('to_location')} • {dep}"
+                line = (
+                    f"#{trip_id} • {t.get('from_location')} → {t.get('to_location')}\n"
+                    f"  Время: {dep}\n"
+                    f"  Мест: {t.get('passengers_count')} • Цена: {t.get('price')}"
                 )
-            text = "\n".join(lines)
+                phone = t.get("passenger_phone") or t.get("passenger_contact") or None
+                if phone:
+                    line += f"\n  Телефон пассажира: {phone}"
 
-        await query.message.edit_text(text, reply_markup=main_menu_kb(True))
+                lines.append(line)
+
+                # Кнопки под каждый заказ
+                buttons.append([
+                    InlineKeyboardButton(
+                        text=f"✅ Завершить #{trip_id}",
+                        callback_data=f"finish_trip:{trip_id}",
+                    ),
+                    InlineKeyboardButton(
+                        text=f"❌ Отказаться #{trip_id}",
+                        callback_data=f"cancel_trip:{trip_id}",
+                    ),
+                ])
+
+            # вниз ещё кнопка "в меню"
+            buttons.append([InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")])
+
+            text = "\n\n".join(lines)
+            kb = InlineKeyboardMarkup(buttons)
+
+        await query.message.edit_text(text, reply_markup=kb)
         return ConversationHandler.END
+
+
 
     if data == "drv_history":
         access = context.user_data.get("access")
@@ -435,6 +597,31 @@ async def on_menu_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = "\n".join(lines)
 
         await query.message.edit_text(text, reply_markup=main_menu_kb(True))
+        return ConversationHandler.END
+    
+    if data.startswith("skip_trip:"):
+        # просто убираем уведомление у этого водителя
+        try:
+            await query.message.delete()
+        except BadRequest as e:
+            if "message to delete not found" not in str(e).lower():
+                raise
+
+        # и выкидываем эту запись из trip_notifications для данного чата
+        try:
+            trip_id = int(data.split(":", 1)[1])
+        except (ValueError, IndexError):
+            return ConversationHandler.END
+
+        notifications = context.application.bot_data.get("trip_notifications", {})
+        entries = notifications.get(trip_id, [])
+        # фильтруем список, оставляя остальных
+        new_entries = [(c, m) for (c, m) in entries if c != query.message.chat_id]
+        if new_entries:
+            notifications[trip_id] = new_entries
+        else:
+            notifications.pop(trip_id, None)
+
         return ConversationHandler.END
 
     if data == "drv_sub":
@@ -595,6 +782,7 @@ async def on_menu_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         trip = r.json()
         dep = trip.get("departure_time", "").replace("T", " ")[:16]
+
         text = (
             "Заказ закреплён за тобой ✅\n\n"
             f"#{trip.get('id')} • {trip.get('from_location')} → {trip.get('to_location')}\n"
@@ -602,11 +790,31 @@ async def on_menu_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Мест: {trip.get('passengers_count')} • Цена: {trip.get('price')}"
         )
 
+        # сначала обновляем текущее сообщение
         try:
-            await query.message.edit_text(text, reply_markup=main_menu_kb(True))
+            await query.message.edit_text(
+                text,
+                reply_markup=main_menu_kb(True),
+            )
         except BadRequest as e:
             if "message is not modified" not in str(e).lower():
                 raise
+
+        # --- НОВОЕ: удаляем уведомления об этом заказе у остальных водителей ---
+        notifications = context.application.bot_data.get("trip_notifications", {})
+        entries = notifications.pop(trip_id, [])
+
+        for chat_id, msg_id in entries:
+            # текущее сообщение уже отредактировали — его не трогаем
+            if chat_id == query.message.chat_id and msg_id == query.message.message_id:
+                continue
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except BadRequest as e:
+                # если сообщение уже удалено/устарело — игнорим
+                if "message to delete not found" not in str(e).lower():
+                    logger.exception("delete_message failed: %s", e)
+
         return ConversationHandler.END
 
     if data == "login_by_phone":
@@ -703,7 +911,7 @@ async def on_menu_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 buttons.append(
                     [
                         InlineKeyboardButton(
-                            text=f"Взять #{trip_id}",
+                            text=f"✅ Взять #{trip_id}",
                             callback_data=f"take_trip:{trip_id}",
                         )
                     ]
@@ -827,16 +1035,24 @@ async def fsm_get_otp(update: Update, context: ContextTypes.DEFAULT_TYPE):
             profile = context.user_data.get("profile") or {}
             is_driver = profile.get("is_driver")
 
+            # --- НОВОЕ: запоминаем chat_id и водителей ---
+            chat_id = update.effective_chat.id
+            context.user_data["chat_id"] = chat_id
             if is_driver:
-                context.user_data["role"] = "driver"
-                text = await driver_main_menu_text(context)
-                kb = driver_keyboard()
-            else:
-                context.user_data["role"] = "passenger"
-                text = "Успешно! Ты в системе.\nГлавное меню пассажира."
-                kb = passenger_keyboard()
+                drivers = context.application.bot_data.setdefault("driver_chats", set())
+                drivers.add(chat_id)
+            # --- конец блока ---
 
-            await update.message.reply_text(text, reply_markup=kb)
+            # текст главного меню (если водитель — с тарифом)
+            if is_driver:
+                text = await driver_main_menu_text(context)
+            else:
+                text = "Успешно! Ты в системе."
+
+            await update.message.reply_text(
+                text,
+                reply_markup=main_menu_kb(is_driver),
+            )
             return ConversationHandler.END
 
         elif r.status_code == 400:
@@ -926,6 +1142,98 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Не понял команду. Нажми кнопки снизу 👇")
 
 
+async def check_new_trips_job(context: ContextTypes.DEFAULT_TYPE):
+    """
+    Периодически дергаем /trips/available/ и ищем поездки,
+    у которых updated_at > last_trip_ts. По ним рассылаем уведомления
+    всем водителям и запоминаем message_id'ы.
+    """
+    app = context.application
+    bot = app.bot
+    bot_data = app.bot_data
+
+    driver_chats: set[int] = bot_data.get("driver_chats") or set()
+    if not driver_chats:
+        return  # нет ни одного активного водителя в боте
+
+    # Берём любой access-токен водителя, чтобы дернуть API
+    sample_token = None
+    for _, udata in app.user_data.items():
+        profile = udata.get("profile") or {}
+        if profile.get("is_driver") and udata.get("access"):
+            sample_token = udata["access"]
+            break
+
+    if not sample_token:
+        return
+
+    try:
+        r = await api_get("trips/available/", token=sample_token)
+    except Exception as e:
+        logger.exception("check_new_trips_job: trips/available exception: %s", e)
+        return
+
+    if r.status_code != 200:
+        logger.warning("check_new_trips_job: trips/available failed %s %s", r.status_code, r.text)
+        return
+
+    data_json = r.json()
+    if isinstance(data_json, dict):
+        trips = data_json.get("results", [])
+    else:
+        trips = data_json
+
+    if not trips:
+        return
+
+    last_ts = bot_data.get("last_trip_ts")  # строка ISO
+    if not last_ts:
+        # при первом запуске считаем, что ничего до этого не было
+        last_ts = "1970-01-01T00:00:00Z"
+
+    # Берём только те, у кого updated_at > last_ts
+    new_trips = [t for t in trips if t.get("updated_at", "") > last_ts]
+    if not new_trips:
+        return
+
+    # обновляем last_trip_ts
+    max_ts = max(t["updated_at"] for t in new_trips if t.get("updated_at"))
+    if max_ts > last_ts:
+        bot_data["last_trip_ts"] = max_ts
+
+    notifications = bot_data.setdefault("trip_notifications", {})  # trip_id -> list[(chat_id, message_id)]
+
+    for t in new_trips:
+        trip_id = t.get("id")
+        if not trip_id:
+            continue
+
+        dep = (t.get("departure_time") or "").replace("T", " ")[:16]
+        phone = t.get("passenger_phone") or "—"
+
+        text = (
+            "🆕 Новый заказ!\n\n"
+            f"#{trip_id} • {t.get('from_location')} → {t.get('to_location')}\n"
+            f"Время: {dep}\n"
+            f"Мест: {t.get('passengers_count')} • Цена: {t.get('price')}\n"
+            f"Телефон пассажира: {phone}"
+        )
+
+        kb = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("✅ Взять", callback_data=f"take_trip:{trip_id}")],
+                [InlineKeyboardButton("❌ Пропустить", callback_data=f"skip_trip:{trip_id}")],
+            ]
+        )
+
+        for chat_id in list(driver_chats):
+            try:
+                msg = await bot.send_message(chat_id=chat_id, text=text, reply_markup=kb)
+                notifications.setdefault(trip_id, []).append((chat_id, msg.message_id))
+            except Exception as e:
+                logger.exception("send trip notify failed: chat_id=%s trip_id=%s err=%s", chat_id, trip_id, e)
+
+
 # ---------- Django management command ----------
 
 
@@ -969,3 +1277,9 @@ class Command(BaseCommand):
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
         app.run_polling(allowed_updates=None, drop_pending_updates=False)
+        
+        app.job_queue.run_repeating(
+            check_new_trips_job,
+            interval=10,   # каждые 10 секунд, можно поменять
+            first=10,
+        )

@@ -30,6 +30,7 @@ class IsAuthenticatedOrReadOnly(permissions.IsAuthenticatedOrReadOnly):
 
 class TripViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     queryset = Trip.objects.all().order_by("departure_time")
+    serializer_class = TripSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
@@ -132,6 +133,90 @@ class TripViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Retriev
         trip.status = "taken"   # <- строковый статус
         trip.save(update_fields=["driver", "status"])
 
+        return Response(TripSerializer(trip).data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=["get"], url_path="available")
+    def available(self, request):
+        user = request.user
+        if not getattr(user, "is_driver", False):
+            return Response({"detail": "Только для водителей"}, status=403)
+
+        qs = (
+            Trip.objects
+            .filter(status="open")  # или Trip.TripStatus.OPEN
+            .order_by("updated_at")  # важно: от старых к новым, мы будем брать последние
+        )
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            ser = TripSerializer(page, many=True)
+            return self.get_paginated_response(ser.data)
+        ser = TripSerializer(qs, many=True)
+        return Response(ser.data)
+    
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
+    def finish(self, request, pk=None):
+        """
+        Водитель завершает поездку.
+        /api/trips/<id>/finish/
+        """
+        trip = self.get_object()
+
+        # только водитель этой поездки
+        if trip.driver_id != request.user.id:
+            return Response(
+                {"detail": "Можно завершить только свою поездку."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # можно завершать только взятые/в пути
+        allowed_statuses = [
+            getattr(Trip.Status, "TAKEN", "taken"),
+            getattr(Trip.Status, "IN_PROGRESS", "in_progress"),
+        ]
+        if trip.status not in allowed_statuses:
+            return Response(
+                {"detail": "Эту поездку нельзя завершить."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        completed_status = getattr(Trip.Status, "COMPLETED", "completed")
+        trip.status = completed_status
+        trip.save(update_fields=["status", "updated_at"])
+
+        from .serializers import TripSerializer
+        return Response(TripSerializer(trip).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
+    def release(self, request, pk=None):
+        """
+        Водитель отказывается от уже взятой поездки.
+        /api/trips/<id>/release/
+        После этого поездка снова становится открытой и может улететь всем водителям.
+        """
+        trip = self.get_object()
+
+        if trip.driver_id != request.user.id:
+            return Response(
+                {"detail": "Можно отказаться только от своей поездки."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        allowed_statuses = [
+            getattr(Trip.Status, "TAKEN", "taken"),
+            getattr(Trip.Status, "IN_PROGRESS", "in_progress"),
+        ]
+        if trip.status not in allowed_statuses:
+            return Response(
+                {"detail": "Эту поездку нельзя вернуть в открытые."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        open_status = getattr(Trip.Status, "OPEN", "open")
+        trip.driver = None
+        trip.status = open_status
+        trip.save(update_fields=["driver", "status", "updated_at"])
+
+        from .serializers import TripSerializer
         return Response(TripSerializer(trip).data, status=status.HTTP_200_OK)
 
 class AvailableTripsForDriversView(generics.ListAPIView):
@@ -330,3 +415,41 @@ class TripStatusUpdateAPIView(generics.UpdateAPIView):
 
     def patch(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
+    
+
+class MyActiveTripsView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TripSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return (
+            Trip.objects
+            .filter(
+                driver=user,
+                status__in=[
+                    getattr(Trip.Status, "TAKEN", "taken"),
+                    getattr(Trip.Status, "IN_PROGRESS", "in_progress"),
+                ],
+            )
+            .order_by("departure_time")
+        )
+
+
+class MyHistoryTripsView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TripSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return (
+            Trip.objects
+            .filter(
+                driver=user,
+                status__in=[
+                    getattr(Trip.Status, "COMPLETED", "completed"),
+                    getattr(Trip.Status, "CANCELLED", "cancelled"),
+                ],
+            )
+            .order_by("-departure_time")
+        )
