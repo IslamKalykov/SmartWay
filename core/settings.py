@@ -9,12 +9,28 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from pathlib import Path
+
+API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+def load_env_file(fname: str):
+    p = BASE_DIR / fname
+    if p.exists():
+        for line in p.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
+# порядок приоритета: .env > .env.local > .env.example
+for name in [".env", ".env.local", ".env.example"]:
+    load_env_file(name)
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -41,10 +57,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'users',
     'trips',
-    
+    'tg',
+    'bot',
     'chat',
+    'billing',
     'channels',
-    'drf_yasg',
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
 ]
 
 MEDIA_URL = '/media/'
@@ -52,10 +71,26 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+
+    "DEFAULT_THROTTLE_CLASSES": [
+        "users.throttling.OTPRateThrottle",            # ⬅ добавили
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.AnonRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "otp": "5/minute",                             # ⬅ важно, чтобы scope существовал
+        "user": "2000/day",
+        "anon": "200/day",
+    },
 }
+
+
 
 ASGI_APPLICATION = "core.asgi.application"
 
@@ -63,11 +98,10 @@ ASGI_APPLICATION = "core.asgi.application"
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
-        },
-    },
+        "CONFIG": {"hosts": [("localhost", 6379)]},
+    }
 }
+
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -114,10 +148,10 @@ SWAGGER_SETTINGS = {
         'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
-            'in': 'header',
-            'description': 'Добавь `Bearer <токен>`'
+            'in': 'header'
         }
     },
+    'USE_SESSION_AUTH': False,
 }
 
 

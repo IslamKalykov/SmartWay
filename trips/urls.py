@@ -1,4 +1,4 @@
-from django.urls import path
+
 from .views import (
     TripCreateAPIView,
     TripListAPIView,
@@ -7,18 +7,18 @@ from .views import (
     TakenTripsAPIView,
     PublishedTripsAPIView,
     ReviewCreateAPIView,
+    UpdateTripStatusAPIView,
+    TripViewSet,
+    AvailableTripsForDriversView,
 )
 
-urlpatterns = [
-    path('create/', TripCreateAPIView.as_view(), name='trip-create'),
-    path('list/', TripListAPIView.as_view(), name='trip-list'),
-    path('take/<int:trip_id>/', TakeTripAPIView.as_view(), name='trip-take'),
+from rest_framework.routers import DefaultRouter
+from django.urls import path, include
 
-    # ➕ новые маршруты
-    path('my/', MyTripsAPIView.as_view(), name='trip-my'),
-    path('taken/', TakenTripsAPIView.as_view(), name='trip-taken'),
-    path('published/', PublishedTripsAPIView.as_view(), name='trip-published'),
-    
-    # Отзывы
-    path('review/create/', ReviewCreateAPIView.as_view(), name='review-create'),
+router = DefaultRouter()
+router.register("", TripViewSet, basename="trips")
+
+urlpatterns = [
+    path("available/", AvailableTripsForDriversView.as_view(), name="trips-available"),
+    path("", include(router.urls)),
 ]

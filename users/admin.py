@@ -31,26 +31,45 @@ class UserChangeForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ('phone_number', 'full_name', 'password', 'is_active', 'is_staff', 'is_superuser')
+        fields = (
+            'phone_number',
+            'full_name',
+            'password',
+            'public_id',     # 🔹
+            'is_active',
+            'is_staff',
+            'is_superuser',
+            'is_approved',
+            'is_driver',
+        )
 
     def clean_password(self):
         return self.initial["password"]
+
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
 
-    list_display = ('phone_number', 'full_name', 'is_staff', 'is_active')
-    list_filter = ('is_staff', 'is_active', 'is_superuser')
+    list_display = (
+        'phone_number',
+        'full_name',
+        'is_driver',
+        'is_approved',
+        'is_staff',
+        'is_active',
+    )
+    list_display = ('phone_number', 'full_name', 'public_id', 'is_driver', 'is_approved', 'is_staff', 'is_active')
+
     search_fields = ('phone_number', 'full_name')
     ordering = ('phone_number',)
     filter_horizontal = ('groups', 'user_permissions')
 
     fieldsets = (
-        (None, {'fields': ('phone_number', 'full_name', 'password')}),
-        ('Права и статус', {'fields': ('is_staff', 'is_active', 'is_superuser', 'groups', 'user_permissions')}),
-    )
+    (None, {'fields': ('phone_number', 'full_name', 'password', 'public_id')}),
+    ('Права и статус', {'fields': ('is_driver', 'is_approved', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+)
     add_fieldsets = (
         (None, {
             'classes': ('wide',),

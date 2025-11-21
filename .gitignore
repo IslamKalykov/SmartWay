@@ -1,3 +1,27 @@
-venv/
+# Python
 __pycache__/
-*.sqlite3
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Env/venv
+.env
+venv/
+.envrc
+*.env.*
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+dump.rdb
+
+# macOS
+.DS_Store
+__MACOSX/
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
