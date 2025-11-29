@@ -1,11 +1,13 @@
-import { Layout, Menu, Button, Dropdown } from "antd";
+// src/components/layout/MainLayout.tsx
+import { Layout, Menu, Button, Dropdown, Tag } from "antd";
 import {
   HomeOutlined,
-  CarOutlined,
+  SearchOutlined,
+  PlusCircleOutlined,
   UserOutlined,
   LoginOutlined,
   LogoutOutlined,
-  SettingOutlined,
+  CarOutlined,
 } from "@ant-design/icons";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
@@ -26,20 +28,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   const selectedKey = (() => {
     if (location.pathname === "/") return "home";
-    if (location.pathname.startsWith("/trips") && isAuth) return "trips";
-    if (location.pathname.startsWith("/my-trips") && isAuth) return "my-trips";
+    if (location.pathname.startsWith("/search")) return "search";
+    if (location.pathname.startsWith("/my-ads")) return "my-ads";
+    if (location.pathname.startsWith("/profile")) return "profile";
     if (location.pathname.startsWith("/login")) return "login";
     if (location.pathname.startsWith("/register")) return "register";
     return "";
   })();
 
-  // Desktop menu
+  // Desktop menu items
   const menuItemsDesktop = isAuth
     ? [
-        { key: "home", label: <Link to="/">Главная</Link> },
-        { key: "trips", label: <Link to="/trips">Поездки</Link> },
-        { key: "my-trips", label: <Link to="/my-trips">Мои поездки</Link> },
-      ]
+      { key: "home", label: <Link to="/">Главная</Link> },
+      { key: "search", label: <Link to="/search">Поездки</Link> },
+      { key: "my-ads", label: <Link to="/my-ads">Мои объявления</Link> },
+    ]
     : [
         { key: "home", label: <Link to="/">Главная</Link> },
         { key: "login", label: <Link to="/login">Войти</Link> },
@@ -51,14 +54,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
     {
       key: "profile",
       icon: <UserOutlined />,
-      label: "Профиль",
+      label: "Мой профиль",
       onClick: () => navigate("/profile"),
-    },
-    {
-      key: "settings",
-      icon: <SettingOutlined />,
-      label: "Настройки",
-      onClick: () => navigate("/settings"),
     },
     {
       type: "divider" as const,
@@ -67,7 +64,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
       key: "logout",
       icon: <LogoutOutlined />,
       label: "Выйти",
-      onClick: logout,
+      onClick: () => {
+        logout();
+        navigate("/");
+      },
       danger: true,
     },
   ];
@@ -107,10 +107,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
               color: "#1677ff",
               cursor: "pointer",
               marginRight: 24,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
             onClick={() => navigate("/")}
           >
-            CarTap
+            <CarOutlined /> CarTap
           </div>
 
           {/* Menu */}
@@ -130,6 +133,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
                 {user?.full_name || "Профиль"}
+                {user?.is_driver && (
+                  <Tag color="blue" style={{ marginLeft: 4 }}>Водитель</Tag>
+                )}
               </Button>
             </Dropdown>
           ) : (
@@ -144,7 +150,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <Content
         style={{
           padding: isMobile ? "16px 16px 80px" : "88px 16px 32px",
-          maxWidth: 900,
+          maxWidth: 1000,
           margin: "0 auto",
           width: "100%",
           minHeight: isMobile ? "calc(100vh - 60px)" : "calc(100vh - 128px)",
@@ -164,15 +170,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
             padding: "24px 16px",
           }}
         >
-          <div style={{ marginBottom: 8 }}>
-            <Link to="/about" style={{ marginRight: 16 }}>
-              О нас
-            </Link>
-            <Link to="/help" style={{ marginRight: 16 }}>
-              Помощь
-            </Link>
-            <Link to="/terms">Условия</Link>
-          </div>
           <div style={{ color: "#999", fontSize: 13 }}>
             CarTap © {new Date().getFullYear()} · Сервис поиска попутчиков
           </div>
@@ -195,11 +192,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
             alignItems: "center",
             zIndex: 200,
             boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
-            // Важно для предотвращения скролла под меню
             paddingBottom: "env(safe-area-inset-bottom)",
           }}
         >
-          {/* Главная — всегда доступна */}
+          {/* Главная */}
           <BottomNavItem
             icon={<HomeOutlined />}
             label="Главная"
@@ -207,28 +203,44 @@ export default function MainLayout({ children }: MainLayoutProps) {
             onClick={() => handleBottomNavClick("/")}
           />
 
-          {/* Поездки — только если вошёл */}
-          {isAuth && (
-            <BottomNavItem
-              icon={<CarOutlined />}
-              label="Поездки"
-              active={selectedKey === "trips"}
-              onClick={() => handleBottomNavClick("/trips")}
-            />
-          )}
+          {isAuth ? (
+            <>
+              {/* Поиск */}
+              <BottomNavItem
+                icon={<SearchOutlined />}
+                label="Поездки"
+                active={selectedKey === "search"}
+                onClick={() => handleBottomNavClick("/search")}
+              />
 
-          {/* Мои поездки — только если вошёл */}
-          {isAuth && (
-            <BottomNavItem
-              icon={<UserOutlined />}
-              label="Мои"
-              active={selectedKey === "my-trips"}
-              onClick={() => handleBottomNavClick("/my-trips")}
-            />
-          )}
+              {/* Мои объявления */}
+              <BottomNavItem
+                icon={<PlusCircleOutlined />}
+                label="Мои"
+                active={selectedKey === "my-ads"}
+                onClick={() => handleBottomNavClick("/my-ads")}
+              />
 
-          {/* Если НЕ авторизован → кнопки входа/регистрации */}
-          {!isAuth && (
+              {/* Профиль */}
+              <BottomNavItem
+                icon={<UserOutlined />}
+                label="Профиль"
+                active={selectedKey === "profile"}
+                onClick={() => handleBottomNavClick("/profile")}
+              />
+
+              {/* 🔴 Выход */}
+              <BottomNavItem
+                icon={<LogoutOutlined />}
+                label="Выход"
+                active={false}
+                onClick={() => {
+                  logout();
+                  navigate("/login");
+                }}
+              />
+            </>
+          ) : (
             <>
               <BottomNavItem
                 icon={<LoginOutlined />}

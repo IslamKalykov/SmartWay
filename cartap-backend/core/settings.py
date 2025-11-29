@@ -80,7 +80,7 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
 
     "DEFAULT_THROTTLE_CLASSES": [
-        "users.throttling.OTPRateThrottle",            # ⬅ добавили
+        # "users.throttling.OTPRateThrottle",            # ⬅ добавили
         "rest_framework.throttling.UserRateThrottle",
         "rest_framework.throttling.AnonRateThrottle",
     ],

@@ -4,11 +4,21 @@ import MainLayout from './components/layout/MainLayout';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
-import TripsListPage from './pages/trips/TripsListPage';
-import MyTripsPage from './pages/trips/MyTripsPage';
-import TripDetailPage from './pages/trips/TripsDetailPage';
+import SearchPage from './pages/SearchPage';
+import MyAdsPage from './pages/MyAdsPage';
+import ProfilePage from './pages/profile/ProfilePage';
 import { useAuth } from './auth/AuthContext';
 import './styles/global.css';
+
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { isAuth, loading } = useAuth();
+  
+  if (loading) {
+    return <div style={{ textAlign: 'center', padding: 50 }}>Загрузка...</div>;
+  }
+  
+  return isAuth ? <>{children}</> : <Navigate to="/login" replace />;
+}
 
 function App() {
   const { isAuth } = useAuth();
@@ -20,30 +30,49 @@ function App() {
 
         <Route
           path="/login"
-          element={isAuth ? <Navigate to="/trips" replace /> : <LoginPage />}
+          element={isAuth ? <Navigate to="/search" replace /> : <LoginPage />}
         />
 
         <Route
           path="/register"
-          element={isAuth ? <Navigate to="/trips" replace /> : <RegisterPage />}
+          element={isAuth ? <Navigate to="/search" replace /> : <RegisterPage />}
         />
 
+        {/* Поиск поездок/заказов */}
         <Route
-          path="/trips"
-          element={isAuth ? <TripsListPage /> : <Navigate to="/login" replace />}
+          path="/search"
+          element={
+            <PrivateRoute>
+              <SearchPage />
+            </PrivateRoute>
+          }
         />
 
+        {/* Мои объявления / мои заказы */}
         <Route
-          path="/trips/:id"
-          element={isAuth ? <TripDetailPage /> : <Navigate to="/login" replace />}
+          path="/my-ads"
+          element={
+            <PrivateRoute>
+              <MyAdsPage />
+            </PrivateRoute>
+          }
         />
 
+        {/* Профиль */}
         <Route
-          path="/my-trips"
-          element={isAuth ? <MyTripsPage /> : <Navigate to="/login" replace />}
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <ProfilePage />
+            </PrivateRoute>
+          }
         />
 
-        <Route path="*" element={<div>Страница не найдена</div>} />
+        {/* Legacy routes - редирект */}
+        <Route path="/trips" element={<Navigate to="/search" replace />} />
+        <Route path="/my-trips" element={<Navigate to="/my-ads" replace />} />
+
+        <Route path="*" element={<div style={{ textAlign: 'center', padding: 50 }}>Страница не найдена</div>} />
       </Routes>
     </MainLayout>
   );

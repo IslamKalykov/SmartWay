@@ -19,6 +19,10 @@ def save_otp(phone: str, code: str) -> None:
     print(f"[OTP] saved: phone={phone_key}, code={code}")
 
 
+# 👇 ДОБАВЬТЕ ЭТУ СТРОКУ
+store_otp = save_otp
+
+
 def get_otp(phone: str) -> Optional[str]:
     phone_key = _normalize_phone(phone)
     return _otp_storage.get(phone_key)
