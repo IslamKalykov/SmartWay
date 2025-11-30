@@ -1,5 +1,6 @@
 // src/App.tsx
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/auth/LoginPage';
@@ -12,9 +13,14 @@ import './styles/global.css';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuth, loading } = useAuth();
+  const { t } = useTranslation();
   
   if (loading) {
-    return <div style={{ textAlign: 'center', padding: 50 }}>Загрузка...</div>;
+    return (
+      <div style={{ textAlign: 'center', padding: 50 }}>
+        {t('common.loading')}
+      </div>
+    );
   }
   
   return isAuth ? <>{children}</> : <Navigate to="/login" replace />;
@@ -72,7 +78,14 @@ function App() {
         <Route path="/trips" element={<Navigate to="/search" replace />} />
         <Route path="/my-trips" element={<Navigate to="/my-ads" replace />} />
 
-        <Route path="*" element={<div style={{ textAlign: 'center', padding: 50 }}>Страница не найдена</div>} />
+        <Route
+          path="*"
+          element={
+            <div style={{ textAlign: 'center', padding: 50 }}>
+              404 — Страница не найдена
+            </div>
+          }
+        />
       </Routes>
     </MainLayout>
   );

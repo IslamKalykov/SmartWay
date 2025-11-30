@@ -1,70 +1,62 @@
 // src/pages/auth/LoginPage.tsx
 import { useState } from 'react';
-import { Button, Form, Input, Typography, Card, message, Space } from 'antd';
-import { PhoneOutlined, SafetyOutlined } from '@ant-design/icons';
-import { sendOtp, verifyOtp } from '../../api/auth';
-import { useNavigate, Link } from 'react-router-dom';
+import {
+  Card, Typography, Form, Input, Button, Space, message, Divider
+} from 'antd';
+import { PhoneOutlined, LockOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { sendOtp, verifyOtp } from '../../api/auth';
 
-const { Title, Paragraph, Text } = Typography;
-
-type Step = 'phone' | 'otp';
-
-type PhoneFormValues = {
-  phone: string;
-};
-
-type OtpFormValues = {
-  code: string;
-};
+const { Title, Text } = Typography;
 
 export default function LoginPage() {
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-
-  const [phoneForm] = Form.useForm<PhoneFormValues>();
-  const [otpForm] = Form.useForm<OtpFormValues>();
-
-  const navigate = useNavigate();
+  const { t } = useTranslation();
   const { login } = useAuth();
+  const navigate = useNavigate();
   const isMobile = useIsMobile(768);
 
-  const handleSendOtp = async (values: PhoneFormValues) => {
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const [phoneForm] = Form.useForm();
+  const [otpForm] = Form.useForm();
+
+  const handleSendOtp = async (values: { phone: string }) => {
     try {
       setLoading(true);
-
-      const normalizedPhone = values.phone.trim();
-
-      await sendOtp({ phone_number: normalizedPhone });
-
-      setPhone(normalizedPhone);
+      await sendOtp(values.phone);
+      setPhone(values.phone);
       setStep('otp');
-      message.success('Код отправлен в Telegram');
+      message.success(t('auth.codeSentTo'));
     } catch (error: any) {
-      console.error(error);
-      message.error(error?.response?.data?.detail || 'Не удалось отправить код');
+      const detail = error?.response?.data?.detail;
+      message.error(detail || t('errors.serverError'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (values: OtpFormValues) => {
+  const handleVerifyOtp = async (values: { code: string }) => {
     try {
       setLoading(true);
+      const result = await verifyOtp(phone, values.code);
 
-      const data = await verifyOtp({
-        phone_number: phone,
-        otp_code: values.code.trim(),
-      });
+      // Сохраняем токены
+      localStorage.setItem('access_token', result.access);
+      localStorage.setItem('refresh_token', result.refresh);
 
-      login(data);
-      message.success('Добро пожаловать!');
-      navigate('/trips');
+      // Обновляем контекст
+      await login(result.access, result.refresh);
+
+      message.success(t('common.success'));
+      navigate('/search');
     } catch (error: any) {
-      console.error(error);
-      message.error(error?.response?.data?.detail || 'Неверный код');
+      const detail = error?.response?.data?.detail;
+      message.error(detail || t('errors.serverError'));
     } finally {
       setLoading(false);
     }
@@ -79,16 +71,16 @@ export default function LoginPage() {
     <div
       style={{
         display: 'flex',
-        alignItems: 'center',
         justifyContent: 'center',
+        alignItems: 'center',
         minHeight: isMobile ? 'auto' : 'calc(100vh - 200px)',
-        padding: isMobile ? '24px 0' : '40px 0',
+        padding: isMobile ? 0 : 24,
       }}
     >
       <Card
         style={{
-          maxWidth: 450,
           width: '100%',
+          maxWidth: 400,
           borderRadius: 12,
           boxShadow: isMobile ? 'none' : '0 4px 12px rgba(0,0,0,0.08)',
         }}
@@ -98,12 +90,10 @@ export default function LoginPage() {
           {/* Header */}
           <div style={{ textAlign: 'center' }}>
             <Title level={isMobile ? 4 : 3} style={{ marginBottom: 8 }}>
-              Вход в SmartWay
+              {t('auth.loginTitle')}
             </Title>
             <Text type="secondary">
-              {step === 'phone'
-                ? 'Введите номер телефона для входа'
-                : 'Введите код из Telegram'}
+              {step === 'phone' ? t('auth.enterPhone') : t('auth.enterCode')}
             </Text>
           </div>
 
@@ -116,19 +106,19 @@ export default function LoginPage() {
               size={isMobile ? 'middle' : 'large'}
             >
               <Form.Item
-                label="Номер телефона"
+                label={t('auth.phoneLabel')}
                 name="phone"
                 rules={[
-                  { required: true, message: 'Введите номер телефона' },
+                  { required: true, message: t('auth.phoneRequired') },
                   {
                     pattern: /^\+996\d{9}$/,
-                    message: 'Формат: +996XXXXXXXXX',
+                    message: t('auth.phoneFormat'),
                   },
                 ]}
               >
                 <Input
                   prefix={<PhoneOutlined style={{ color: '#999' }} />}
-                  placeholder="+996555123456"
+                  placeholder={t('auth.phonePlaceholder')}
                   disabled={loading}
                   style={{ borderRadius: 8 }}
                 />
@@ -142,7 +132,7 @@ export default function LoginPage() {
                   loading={loading}
                   style={{ borderRadius: 8, height: isMobile ? 40 : 44 }}
                 >
-                  Получить код
+                  {t('auth.getCode')}
                 </Button>
               </Form.Item>
             </Form>
@@ -160,7 +150,7 @@ export default function LoginPage() {
                 }}
               >
                 <Text type="secondary" style={{ fontSize: 14 }}>
-                  Код отправлен на номер
+                  {t('auth.codeSentTo')}
                 </Text>
                 <div style={{ marginTop: 4 }}>
                   <Text strong style={{ fontSize: 16 }}>
@@ -176,64 +166,51 @@ export default function LoginPage() {
                 size={isMobile ? 'middle' : 'large'}
               >
                 <Form.Item
-                  label="Код подтверждения"
+                  label={t('auth.codeLabel')}
                   name="code"
-                  rules={[
-                    { required: true, message: 'Введите код' },
-                    { len: 4, message: 'Код должен содержать 4 цифры' },
-                  ]}
+                  rules={[{ required: true, message: t('auth.codeRequired') }]}
                 >
                   <Input
-                    prefix={<SafetyOutlined style={{ color: '#999' }} />}
-                    placeholder="1234"
-                    inputMode="numeric"
-                    maxLength={4}
+                    prefix={<LockOutlined style={{ color: '#999' }} />}
+                    placeholder={t('auth.codePlaceholder')}
                     disabled={loading}
-                    style={{ borderRadius: 8, fontSize: 18, letterSpacing: 4 }}
+                    style={{ borderRadius: 8, letterSpacing: 4, textAlign: 'center' }}
+                    maxLength={6}
                   />
                 </Form.Item>
 
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    block
-                    loading={loading}
-                    style={{ borderRadius: 8, height: isMobile ? 40 : 44 }}
-                  >
-                    Войти
-                  </Button>
-
-                  <Button
-                    block
-                    onClick={handleBack}
-                    disabled={loading}
-                    style={{ borderRadius: 8 }}
-                  >
-                    Изменить номер
-                  </Button>
-                </Space>
+                <Form.Item style={{ marginBottom: 0 }}>
+                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      block
+                      loading={loading}
+                      style={{ borderRadius: 8, height: isMobile ? 40 : 44 }}
+                    >
+                      {t('auth.verify')}
+                    </Button>
+                    <Button
+                      type="text"
+                      block
+                      onClick={handleBack}
+                      icon={<ArrowLeftOutlined />}
+                    >
+                      {t('auth.changePhone')}
+                    </Button>
+                  </Space>
+                </Form.Item>
               </Form>
             </>
           )}
 
           {/* Footer */}
-          {step === 'phone' && (
-            <div
-              style={{
-                textAlign: 'center',
-                paddingTop: 16,
-                borderTop: '1px solid #f0f0f0',
-              }}
-            >
-              <Text type="secondary" style={{ fontSize: 14 }}>
-                Нет аккаунта?{' '}
-                <Link to="/register" style={{ fontWeight: 500 }}>
-                  Зарегистрироваться
-                </Link>
-              </Text>
-            </div>
-          )}
+          <Divider style={{ margin: 0 }} />
+
+          <div style={{ textAlign: 'center' }}>
+            <Text type="secondary">{t('auth.noAccount')} </Text>
+            <Link to="/register">{t('auth.registerLink')}</Link>
+          </div>
         </Space>
       </Card>
     </div>

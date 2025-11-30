@@ -1,150 +1,255 @@
+// src/pages/auth/RegisterPage.tsx
 import { useState } from 'react';
-import { Button, Form, Input, Typography, Card, Radio, message } from 'antd';
-import { sendOtp, verifyOtp } from '../../api/auth';
-import { useNavigate } from 'react-router-dom';
+import {
+  Card, Typography, Form, Input, Button, Space, message, Divider, Switch
+} from 'antd';
+import { PhoneOutlined, LockOutlined, ArrowLeftOutlined, UserOutlined, CarOutlined } from '@ant-design/icons';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { sendOtp, verifyOtp } from '../../api/auth';
 
-const { Title, Paragraph } = Typography;
-
-type Step = 'form' | 'otp';
-
-type RegisterFormValues = {
-  full_name: string;
-  phone: string;
-  role: 'driver' | 'passenger';
-};
-
-type OtpFormValues = {
-  code: string;
-};
+const { Title, Text } = Typography;
 
 export default function RegisterPage() {
-  const [step, setStep] = useState<Step>('form');
+  const { t } = useTranslation();
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile(768);
+
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [phone, setPhone] = useState('');
+  const [isDriver, setIsDriver] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [registerForm] = Form.useForm<RegisterFormValues>();
-  const [otpForm] = Form.useForm<OtpFormValues>();
+  const [phoneForm] = Form.useForm();
+  const [otpForm] = Form.useForm();
 
-  const [phone, setPhone] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'driver' | 'passenger'>('passenger');
-
-  const navigate = useNavigate();
-  const { login } = useAuth();
-
-  const handleSendOtp = async (values: RegisterFormValues) => {
+  const handleSendOtp = async (values: { phone: string }) => {
     try {
       setLoading(true);
-
-      const normalizedPhone = values.phone.trim();
-      setPhone(normalizedPhone);
-      setFullName(values.full_name.trim());
-      setRole(values.role);
-
-      await sendOtp({ phone_number: normalizedPhone });
-
+      await sendOtp(values.phone);
+      setPhone(values.phone);
       setStep('otp');
-      message.success('Код отправлен в Telegram. Введите его ниже.');
+      message.success(t('auth.codeSentTo'));
     } catch (error: any) {
-      console.error(error);
-      message.error(error?.response?.data?.detail || 'Не удалось отправить код.');
+      const detail = error?.response?.data?.detail;
+      message.error(detail || t('errors.serverError'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (values: OtpFormValues) => {
+  const handleVerifyOtp = async (values: { code: string }) => {
     try {
       setLoading(true);
+      const result = await verifyOtp(phone, values.code);
 
-      const data = await verifyOtp({
-        phone_number: phone,
-        otp_code: values.code.trim(),
-        full_name: fullName,
-        role: role,
-      });
+      // Сохраняем токены
+      localStorage.setItem('access_token', result.access);
+      localStorage.setItem('refresh_token', result.refresh);
 
-      login(data);
-      message.success('Регистрация и вход выполнены');
-      navigate('/trips');
+      // Обновляем контекст
+      await login(result.access, result.refresh);
+
+      message.success(t('common.success'));
+      navigate('/profile');
     } catch (error: any) {
-      console.error(error);
-      message.error(error?.response?.data?.detail || 'Неверный код или ошибка регистрации.');
+      const detail = error?.response?.data?.detail;
+      message.error(detail || t('errors.serverError'));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBack = () => {
+    setStep('phone');
+    otpForm.resetFields();
   };
 
   return (
-    <Card style={{ maxWidth: 450, margin: '0 auto' }}>
-      <Title level={3} style={{ textAlign: 'center' }}>
-        Регистрация в SmartWay
-      </Title>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: isMobile ? 'auto' : 'calc(100vh - 200px)',
+        padding: isMobile ? 0 : 24,
+      }}
+    >
+      <Card
+        style={{
+          width: '100%',
+          maxWidth: 400,
+          borderRadius: 12,
+          boxShadow: isMobile ? 'none' : '0 4px 12px rgba(0,0,0,0.08)',
+        }}
+        bodyStyle={{ padding: isMobile ? 20 : 32 }}
+      >
+        <Space direction="vertical" size={24} style={{ width: '100%' }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center' }}>
+            <Title level={isMobile ? 4 : 3} style={{ marginBottom: 8 }}>
+              {t('nav.register')}
+            </Title>
+            <Text type="secondary">
+              {step === 'phone' ? t('auth.enterPhone') : t('auth.enterCode')}
+            </Text>
+          </div>
 
-      {step === 'form' && (
-        <>
-          <Paragraph>Укажите данные и подтвердите номер телефона через Telegram.</Paragraph>
-
-          <Form form={registerForm} layout="vertical" onFinish={handleSendOtp} initialValues={{ role: 'passenger' }}>
-            <Form.Item
-              label="Кто вы?"
-              name="role"
-              rules={[{ required: true, message: 'Выберите роль' }]}
+          {/* Phone Step */}
+          {step === 'phone' && (
+            <Form
+              form={phoneForm}
+              layout="vertical"
+              onFinish={handleSendOtp}
+              size={isMobile ? 'middle' : 'large'}
             >
-              <Radio.Group>
-                <Radio.Button value="passenger">Пассажир</Radio.Button>
-                <Radio.Button value="driver">Водитель</Radio.Button>
-              </Radio.Group>
-            </Form.Item>
+              <Form.Item
+                label={t('auth.phoneLabel')}
+                name="phone"
+                rules={[
+                  { required: true, message: t('auth.phoneRequired') },
+                  {
+                    pattern: /^\+996\d{9}$/,
+                    message: t('auth.phoneFormat'),
+                  },
+                ]}
+              >
+                <Input
+                  prefix={<PhoneOutlined style={{ color: '#999' }} />}
+                  placeholder={t('auth.phonePlaceholder')}
+                  disabled={loading}
+                  style={{ borderRadius: 8 }}
+                />
+              </Form.Item>
 
-            <Form.Item
-              label="Имя"
-              name="full_name"
-              rules={[{ required: true, message: 'Введите имя' }]}
-            >
-              <Input placeholder="Как к вам обращаться" disabled={loading} />
-            </Form.Item>
+              {/* Role selector */}
+              <Form.Item>
+                <Card
+                  size="small"
+                  style={{
+                    borderRadius: 8,
+                    background: isDriver ? '#e6f4ff' : '#f5f5f5',
+                    borderColor: isDriver ? '#1677ff' : '#d9d9d9',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Space>
+                      {isDriver ? <CarOutlined style={{ color: '#1677ff' }} /> : <UserOutlined />}
+                      <div>
+                        <Text strong>
+                          {isDriver ? t('trip.driver') : t('trip.passenger')}
+                        </Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {isDriver 
+                            ? t('home.findPassengers')
+                            : t('home.findTrip')
+                          }
+                        </Text>
+                      </div>
+                    </Space>
+                    <Switch
+                      checked={isDriver}
+                      onChange={setIsDriver}
+                      checkedChildren={<CarOutlined />}
+                      unCheckedChildren={<UserOutlined />}
+                    />
+                  </div>
+                </Card>
+              </Form.Item>
 
-            <Form.Item
-              label="Номер телефона"
-              name="phone"
-              rules={[{ required: true, message: 'Введите номер телефона' }]}
-            >
-              <Input placeholder="+996..." disabled={loading} />
-            </Form.Item>
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  block
+                  loading={loading}
+                  style={{ borderRadius: 8, height: isMobile ? 40 : 44 }}
+                >
+                  {t('auth.getCode')}
+                </Button>
+              </Form.Item>
+            </Form>
+          )}
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" block loading={loading}>
-                Получить код
-              </Button>
-            </Form.Item>
-          </Form>
-        </>
-      )}
+          {/* OTP Step */}
+          {step === 'otp' && (
+            <>
+              <div
+                style={{
+                  padding: 16,
+                  background: '#f5f5f5',
+                  borderRadius: 8,
+                  textAlign: 'center',
+                }}
+              >
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  {t('auth.codeSentTo')}
+                </Text>
+                <div style={{ marginTop: 4 }}>
+                  <Text strong style={{ fontSize: 16 }}>
+                    {phone}
+                  </Text>
+                </div>
+              </div>
 
-      {step === 'otp' && (
-        <>
-          <Paragraph>
-            Мы отправили код на номер <b>{phone}</b>. Введите код из Telegram для завершения регистрации.
-          </Paragraph>
+              <Form
+                form={otpForm}
+                layout="vertical"
+                onFinish={handleVerifyOtp}
+                size={isMobile ? 'middle' : 'large'}
+              >
+                <Form.Item
+                  label={t('auth.codeLabel')}
+                  name="code"
+                  rules={[{ required: true, message: t('auth.codeRequired') }]}
+                >
+                  <Input
+                    prefix={<LockOutlined style={{ color: '#999' }} />}
+                    placeholder={t('auth.codePlaceholder')}
+                    disabled={loading}
+                    style={{ borderRadius: 8, letterSpacing: 4, textAlign: 'center' }}
+                    maxLength={6}
+                  />
+                </Form.Item>
 
-          <Form form={otpForm} layout="vertical" onFinish={handleVerifyOtp}>
-            <Form.Item
-              label="Код подтверждения"
-              name="code"
-              rules={[{ required: true, message: 'Введите код' }]}
-            >
-              <Input placeholder="1234" inputMode="numeric" disabled={loading} />
-            </Form.Item>
+                <Form.Item style={{ marginBottom: 0 }}>
+                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      block
+                      loading={loading}
+                      style={{ borderRadius: 8, height: isMobile ? 40 : 44 }}
+                    >
+                      {t('auth.verify')}
+                    </Button>
+                    <Button
+                      type="text"
+                      block
+                      onClick={handleBack}
+                      icon={<ArrowLeftOutlined />}
+                    >
+                      {t('auth.changePhone')}
+                    </Button>
+                  </Space>
+                </Form.Item>
+              </Form>
+            </>
+          )}
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" block loading={loading}>
-                Завершить регистрацию
-              </Button>
-            </Form.Item>
-          </Form>
-        </>
-      )}
-    </Card>
+          {/* Footer */}
+          <Divider style={{ margin: 0 }} />
+
+          <div style={{ textAlign: 'center' }}>
+            <Text type="secondary">{t('auth.hasAccount')} </Text>
+            <Link to="/login">{t('auth.loginLink')}</Link>
+          </div>
+        </Space>
+      </Card>
+    </div>
   );
 }

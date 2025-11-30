@@ -1,42 +1,51 @@
 // src/pages/MyAdsPage.tsx
 import { useState, useEffect } from 'react';
 import {
-  Card, Typography, Button, Tabs, List, Tag, Space, Empty, Spin,
-  Modal, Form, Input, InputNumber, DatePicker, Select, Switch, message, Badge
+  Card, Typography, Button, Tabs, Empty, Spin, Modal, message, Badge, Space
 } from 'antd';
 import {
-  PlusOutlined, CarOutlined, UserOutlined, ClockCircleOutlined,
-  EnvironmentOutlined, CheckCircleOutlined, CloseCircleOutlined,
+  PlusOutlined, CheckCircleOutlined, CloseCircleOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
-import { 
-  fetchMyAnnouncements, createAnnouncement, cancelAnnouncement, completeAnnouncement,
-  fetchIncomingBookings, confirmBooking, rejectBooking,
-  type Announcement, type Booking
+import TripCard from '../components/TripCard';
+import AnnouncementCard from '../components/AnnouncementCard';
+import CreateTripForm from '../components/CreateTripForm';
+import CreateAnnouncementForm from '../components/CreateAnnouncementForm';
+
+import {
+  fetchMyAnnouncements,
+  cancelAnnouncement,
+  completeAnnouncement,
+  fetchIncomingBookings,
+  confirmBooking,
+  rejectBooking,
+  type Announcement,
+  type Booking,
 } from '../api/announcements';
-import { fetchMyTrips, createTrip, cancelTrip, type Trip } from '../api/trips';
-import { getMyCars, type Car } from '../api/auth';
+import {
+  fetchMyTrips,
+  cancelTrip,
+  type Trip,
+} from '../api/trips';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 export default function MyAdsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const isDriver = user?.is_driver;
-  
+
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [cars, setCars] = useState<Car[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  
-  const [form] = Form.useForm();
+  const [activeTab, setActiveTab] = useState('active');
 
   useEffect(() => {
     loadData();
@@ -46,358 +55,315 @@ export default function MyAdsPage() {
     try {
       setLoading(true);
       if (isDriver) {
-        const [annData, bookingsData, carsData] = await Promise.all([
+        const [annData, bookingsData] = await Promise.all([
           fetchMyAnnouncements(),
           fetchIncomingBookings(),
-          getMyCars(),
         ]);
         setAnnouncements(annData);
         setBookings(bookingsData);
-        setCars(carsData);
       } else {
         const tripsData = await fetchMyTrips();
         setTrips(tripsData);
       }
     } catch (error) {
       console.error(error);
-      message.error('Ошибка загрузки данных');
+      message.error(t('errors.serverError'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreate = async (values: any) => {
+  // === Действия для пассажира ===
+  const handleCancelTrip = async (tripId: number) => {
     try {
-      const data = {
-        ...values,
-        departure_time: values.departure_time.toISOString(),
-      };
-      
-      if (isDriver) {
-        await createAnnouncement(data);
-        message.success('Объявление создано!');
-      } else {
-        await createTrip(data);
-        message.success('Заказ создан!');
-      }
-      
-      setShowCreateModal(false);
-      form.resetFields();
+      await cancelTrip(tripId);
+      message.success(t('common.success'));
       loadData();
     } catch (error: any) {
-      console.error(error);
-      message.error(error?.response?.data?.detail || 'Ошибка создания');
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
     }
   };
 
-  const handleCancelAnnouncement = async (id: number) => {
+  // === Действия для водителя ===
+  const handleCancelAnnouncement = async (announcementId: number) => {
     try {
-      await cancelAnnouncement(id);
-      message.success('Объявление отменено');
-      loadData();
-    } catch (error) {
-      message.error('Ошибка отмены');
-    }
-  };
-
-  const handleCompleteAnnouncement = async (id: number) => {
-    try {
-      await completeAnnouncement(id);
-      message.success('Объявление завершено');
-      loadData();
-    } catch (error) {
-      message.error('Ошибка');
-    }
-  };
-
-  const handleCancelTrip = async (id: number) => {
-    try {
-      await cancelTrip(id);
-      message.success('Заказ отменён');
-      loadData();
-    } catch (error) {
-      message.error('Ошибка отмены');
-    }
-  };
-
-  const handleConfirmBooking = async (id: number) => {
-    try {
-      await confirmBooking(id);
-      message.success('Бронирование подтверждено');
+      await cancelAnnouncement(announcementId);
+      message.success(t('common.success'));
       loadData();
     } catch (error: any) {
-      message.error(error?.response?.data?.detail || 'Ошибка');
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
     }
   };
 
-  const handleRejectBooking = async (id: number) => {
+  const handleCompleteAnnouncement = async (announcementId: number) => {
     try {
-      await rejectBooking(id);
-      message.success('Бронирование отклонено');
+      await completeAnnouncement(announcementId);
+      message.success(t('common.success'));
       loadData();
-    } catch (error) {
-      message.error('Ошибка');
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
     }
   };
 
-  const getStatusTag = (status: string) => {
-    const statusMap: Record<string, { color: string; text: string }> = {
-      active: { color: 'green', text: 'Активно' },
-      open: { color: 'green', text: 'Открыт' },
-      full: { color: 'orange', text: 'Мест нет' },
-      taken: { color: 'blue', text: 'Взят' },
-      in_progress: { color: 'processing', text: 'В пути' },
-      completed: { color: 'default', text: 'Завершено' },
-      cancelled: { color: 'red', text: 'Отменено' },
-      pending: { color: 'orange', text: 'Ожидает' },
-      confirmed: { color: 'green', text: 'Подтверждено' },
-      rejected: { color: 'red', text: 'Отклонено' },
-    };
-    const s = statusMap[status] || { color: 'default', text: status };
-    return <Tag color={s.color}>{s.text}</Tag>;
+  const handleConfirmBooking = async (bookingId: number) => {
+    try {
+      await confirmBooking(bookingId);
+      message.success(t('common.success'));
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    }
   };
 
-  if (loading) {
-    return <div style={{ textAlign: 'center', padding: 50 }}><Spin size="large" /></div>;
-  }
+  const handleRejectBooking = async (bookingId: number) => {
+    try {
+      await rejectBooking(bookingId);
+      message.success(t('common.success'));
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    }
+  };
+
+  // Фильтрация по статусу
+  const activeAnnouncements = announcements.filter(a =>
+    ['active', 'full'].includes(a.status)
+  );
+  const completedAnnouncements = announcements.filter(a =>
+    ['completed', 'cancelled', 'expired'].includes(a.status)
+  );
+
+  const activeTrips = trips.filter(t =>
+    ['open', 'taken', 'in_progress'].includes(t.status)
+  );
+  const completedTrips = trips.filter(t =>
+    ['completed', 'cancelled', 'expired'].includes(t.status)
+  );
 
   const pendingBookings = bookings.filter(b => b.status === 'pending');
 
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: 50 }}>
+        <Spin size="large" />
+        <div style={{ marginTop: 16 }}>
+          <Text type="secondary">{t('common.loading')}</Text>
+        </div>
+      </div>
+    );
+  }
+
+  const tabItems = isDriver
+    ? [
+        {
+          key: 'active',
+          label: (
+            <span>
+              {t('announcementStatus.active')} ({activeAnnouncements.length})
+            </span>
+          ),
+          children: (
+            <div>
+              {activeAnnouncements.length > 0 ? (
+                activeAnnouncements.map(ann => (
+                  <AnnouncementCard
+                    key={ann.id}
+                    announcement={ann}
+                    showDriverInfo={false}
+                  />
+                ))
+              ) : (
+                <Empty description={t('common.noData')} />
+              )}
+            </div>
+          ),
+        },
+        {
+          key: 'bookings',
+          label: (
+            <Badge count={pendingBookings.length} size="small">
+              <span style={{ paddingRight: pendingBookings.length > 0 ? 12 : 0 }}>
+                {t('booking.title')}
+              </span>
+            </Badge>
+          ),
+          children: (
+            <div>
+              {bookings.length > 0 ? (
+                bookings.map(booking => (
+                  <Card
+                    key={booking.id}
+                    style={{ marginBottom: 12, borderRadius: 12 }}
+                    bodyStyle={{ padding: 16 }}
+                  >
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong>{booking.passenger_name}</Text>
+                      <Text type="secondary" style={{ marginLeft: 8 }}>
+                        {booking.seats_count} {t('trip.seats')}
+                      </Text>
+                    </div>
+
+                    {booking.message && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text type="secondary">{booking.message}</Text>
+                      </div>
+                    )}
+
+                    {booking.status === 'pending' && (
+                      <Space>
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<CheckCircleOutlined />}
+                          onClick={() => handleConfirmBooking(booking.id)}
+                        >
+                          {t('common.confirm')}
+                        </Button>
+                        <Button
+                          danger
+                          size="small"
+                          icon={<CloseCircleOutlined />}
+                          onClick={() => handleRejectBooking(booking.id)}
+                        >
+                          {t('common.cancel')}
+                        </Button>
+                      </Space>
+                    )}
+
+                    {booking.status !== 'pending' && (
+                      <Text
+                        type={booking.status === 'confirmed' ? 'success' : 'danger'}
+                      >
+                        {booking.status === 'confirmed'
+                          ? t('booking.confirmed')
+                          : t('booking.rejected')}
+                      </Text>
+                    )}
+                  </Card>
+                ))
+              ) : (
+                <Empty description={t('common.noData')} />
+              )}
+            </div>
+          ),
+        },
+        {
+          key: 'completed',
+          label: `${t('tripStatus.completed')} (${completedAnnouncements.length})`,
+          children: (
+            <div>
+              {completedAnnouncements.length > 0 ? (
+                completedAnnouncements.map(ann => (
+                  <AnnouncementCard
+                    key={ann.id}
+                    announcement={ann}
+                    showDriverInfo={false}
+                  />
+                ))
+              ) : (
+                <Empty description={t('common.noData')} />
+              )}
+            </div>
+          ),
+        },
+      ]
+    : [
+        {
+          key: 'active',
+          label: `${t('tripStatus.open')} (${activeTrips.length})`,
+          children: (
+            <div>
+              {activeTrips.length > 0 ? (
+                activeTrips.map(trip => (
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    onAction={
+                      trip.status === 'open'
+                        ? () => handleCancelTrip(trip.id)
+                        : undefined
+                    }
+                    actionLabel={trip.status === 'open' ? t('trip.cancel') : undefined}
+                  />
+                ))
+              ) : (
+                <Empty description={t('common.noData')} />
+              )}
+            </div>
+          ),
+        },
+        {
+          key: 'completed',
+          label: `${t('tripStatus.completed')} (${completedTrips.length})`,
+          children: (
+            <div>
+              {completedTrips.length > 0 ? (
+                completedTrips.map(trip => (
+                  <TripCard key={trip.id} trip={trip} />
+                ))
+              ) : (
+                <Empty description={t('common.noData')} />
+              )}
+            </div>
+          ),
+        },
+      ];
+
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          {isDriver ? '🚗 Мои объявления' : '📋 Мои заказы'}
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <Title level={4} style={{ margin: 0 }}>
+          {isDriver ? t('create.announcementTitle') : t('create.tripTitle')}
         </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreateModal(true)}>
-          {isDriver ? 'Новое объявление' : 'Новый заказ'}
+
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setShowCreateModal(true)}
+        >
+          {isDriver ? t('home.createAnnouncement') : t('home.createTrip')}
         </Button>
       </div>
 
-      {isDriver ? (
-        // ===== ВОДИТЕЛЬ =====
-        <Tabs
-          defaultActiveKey="announcements"
-          items={[
-            {
-              key: 'announcements',
-              label: `Объявления (${announcements.length})`,
-              children: announcements.length > 0 ? (
-                <List
-                  dataSource={announcements}
-                  renderItem={(ann) => (
-                    <Card size="small" style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                        <div>
-                          <Space>
-                            {getStatusTag(ann.status)}
-                            <Text strong>{ann.from_location} → {ann.to_location}</Text>
-                          </Space>
-                          <div style={{ marginTop: 8 }}>
-                            <Text type="secondary">
-                              <ClockCircleOutlined /> {dayjs(ann.departure_time).format('DD.MM.YYYY HH:mm')}
-                            </Text>
-                            <Text style={{ marginLeft: 16 }}>
-                              {ann.price_per_seat} сом/место • {ann.free_seats}/{ann.available_seats} мест
-                            </Text>
-                          </div>
-                        </div>
-                        <Space>
-                          {ann.status === 'active' && (
-                            <>
-                              <Button size="small" type="primary" onClick={() => handleCompleteAnnouncement(ann.id)}>
-                                Завершить
-                              </Button>
-                              <Button size="small" danger onClick={() => handleCancelAnnouncement(ann.id)}>
-                                Отменить
-                              </Button>
-                            </>
-                          )}
-                        </Space>
-                      </div>
-                    </Card>
-                  )}
-                />
-              ) : (
-                <Empty description="Нет объявлений" />
-              ),
-            },
-            {
-              key: 'bookings',
-              label: (
-                <Badge count={pendingBookings.length} offset={[10, 0]}>
-                  Заявки
-                </Badge>
-              ),
-              children: bookings.length > 0 ? (
-                <List
-                  dataSource={bookings}
-                  renderItem={(booking) => (
-                    <Card size="small" style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                        <div>
-                          <Space>
-                            {getStatusTag(booking.status)}
-                            <Text strong>{booking.passenger_name}</Text>
-                            <Text type="secondary">• {booking.seats_count} мест</Text>
-                          </Space>
-                          <div style={{ marginTop: 4 }}>
-                            <Text type="secondary">
-                              {booking.announcement_info?.from_location} → {booking.announcement_info?.to_location}
-                            </Text>
-                          </div>
-                          {booking.message && (
-                            <div style={{ marginTop: 4 }}>
-                              <Text type="secondary">"{booking.message}"</Text>
-                            </div>
-                          )}
-                        </div>
-                        <Space>
-                          {booking.status === 'pending' && (
-                            <>
-                              <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleConfirmBooking(booking.id)}>
-                                Принять
-                              </Button>
-                              <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleRejectBooking(booking.id)}>
-                                Отклонить
-                              </Button>
-                            </>
-                          )}
-                        </Space>
-                      </div>
-                    </Card>
-                  )}
-                />
-              ) : (
-                <Empty description="Нет заявок" />
-              ),
-            },
-          ]}
-        />
-      ) : (
-        // ===== ПАССАЖИР =====
-        trips.length > 0 ? (
-          <List
-            dataSource={trips}
-            renderItem={(trip) => (
-              <Card size="small" style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                  <div>
-                    <Space>
-                      {getStatusTag(trip.status)}
-                      <Text strong>{trip.from_location} → {trip.to_location}</Text>
-                    </Space>
-                    <div style={{ marginTop: 8 }}>
-                      <Text type="secondary">
-                        <ClockCircleOutlined /> {dayjs(trip.departure_time).format('DD.MM.YYYY HH:mm')}
-                      </Text>
-                      <Text style={{ marginLeft: 16 }}>
-                        {trip.passengers_count} пассажир(ов) • {trip.price || 'Договорная'} сом
-                      </Text>
-                    </div>
-                    {trip.driver_name && (
-                      <div style={{ marginTop: 4 }}>
-                        <Text type="secondary">Водитель: {trip.driver_name}</Text>
-                      </div>
-                    )}
-                  </div>
-                  <Space>
-                    {trip.status === 'open' && (
-                      <Button size="small" danger onClick={() => handleCancelTrip(trip.id)}>
-                        Отменить
-                      </Button>
-                    )}
-                  </Space>
-                </div>
-              </Card>
-            )}
-          />
-        ) : (
-          <Empty description="Нет заказов. Создайте первый!" />
-        )
-      )}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabItems}
+      />
 
-      {/* Create Modal */}
+      {/* Модалка создания */}
       <Modal
-        title={isDriver ? '🚗 Новое объявление' : '📋 Новый заказ'}
         open={showCreateModal}
         onCancel={() => setShowCreateModal(false)}
         footer={null}
-        width={500}
+        width={600}
+        destroyOnClose
       >
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="from_location" label="Откуда" rules={[{ required: true, message: 'Укажите откуда' }]}>
-            <Input placeholder="Бишкек" />
-          </Form.Item>
-          
-          <Form.Item name="to_location" label="Куда" rules={[{ required: true, message: 'Укажите куда' }]}>
-            <Input placeholder="Ош" />
-          </Form.Item>
-          
-          <Form.Item name="departure_time" label="Дата и время" rules={[{ required: true, message: 'Укажите время' }]}>
-            <DatePicker 
-              showTime 
-              format="DD.MM.YYYY HH:mm" 
-              style={{ width: '100%' }}
-              disabledDate={(current) => current && current < dayjs().startOf('day')}
-            />
-          </Form.Item>
-
-          {isDriver ? (
-            // Поля для водителя
-            <>
-              <Form.Item name="available_seats" label="Свободных мест" rules={[{ required: true }]} initialValue={4}>
-                <InputNumber min={1} max={50} style={{ width: '100%' }} />
-              </Form.Item>
-              
-              <Form.Item name="price_per_seat" label="Цена за место (сом)" rules={[{ required: true }]}>
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="500" />
-              </Form.Item>
-              
-              {cars.length > 0 && (
-                <Form.Item name="car" label="Автомобиль">
-                  <Select placeholder="Выберите авто" allowClear>
-                    {cars.map(car => (
-                      <Select.Option key={car.id} value={car.id}>
-                        {car.brand} {car.model} ({car.plate_number})
-                      </Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              )}
-            </>
-          ) : (
-            // Поля для пассажира
-            <>
-              <Form.Item name="passengers_count" label="Количество пассажиров" rules={[{ required: true }]} initialValue={1}>
-                <InputNumber min={1} max={50} style={{ width: '100%' }} />
-              </Form.Item>
-              
-              <Form.Item name="price" label="Желаемая цена (сом)">
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="Оставьте пустым если договорная" />
-              </Form.Item>
-              
-              <Form.Item name="is_negotiable" valuePropName="checked" initialValue={true}>
-                <Switch /> Цена договорная
-              </Form.Item>
-            </>
-          )}
-          
-          <Form.Item name="comment" label="Комментарий">
-            <TextArea rows={2} placeholder="Дополнительная информация..." />
-          </Form.Item>
-          
-          <Form.Item style={{ marginBottom: 0 }}>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                Создать
-              </Button>
-              <Button onClick={() => setShowCreateModal(false)}>
-                Отмена
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+        {isDriver ? (
+          <CreateAnnouncementForm
+            onSuccess={() => {
+              setShowCreateModal(false);
+              loadData();
+            }}
+            onCancel={() => setShowCreateModal(false)}
+            onAddCar={() => navigate('/profile')}
+          />
+        ) : (
+          <CreateTripForm
+            onSuccess={() => {
+              setShowCreateModal(false);
+              loadData();
+            }}
+            onCancel={() => setShowCreateModal(false)}
+          />
+        )}
       </Modal>
     </div>
   );
