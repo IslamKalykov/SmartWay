@@ -219,5 +219,9 @@
         "en": "English",
         "ky": "Кыргызча",
         "select": "Тил тандоо"
+    },
+    "contact": {
+        "telegram": "Telegram жазуу",
+        "call": "Чалуу"
     }
 }

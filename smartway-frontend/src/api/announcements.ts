@@ -91,13 +91,22 @@ export interface Booking {
 
 // ============ Announcements API ============
 
-export async function fetchAvailableAnnouncements(params?: {
-  from?: string;
-  to?: string;
-  seats?: number;
-}): Promise<Announcement[]> {
-  const resp = await api.get('/announcements/available/', { params });
-  return resp.data;
+export async function fetchAvailableAnnouncements(filters?: SearchFilters): Promise<Announcement[]> {
+  const params: Record<string, any> = {};
+  
+  if (filters?.from_location) params.from = filters.from_location;
+  if (filters?.to_location) params.to = filters.to_location;
+  if (filters?.date) params.date = filters.date;
+  
+  const response = await api.get('/announcements/available/', { params });
+  
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  if (response.data?.results) {
+    return response.data.results;
+  }
+  return [];
 }
 
 export async function fetchMyAnnouncements(): Promise<Announcement[]> {

@@ -163,7 +163,17 @@ export async function uploadPhoto(file: File): Promise<User> {
  */
 export async function getMyCars(): Promise<Car[]> {
   const response = await api.get('/users/cars/');
-  return response.data;
+  
+  // Обработка пагинированного ответа
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  if (response.data && Array.isArray(response.data.results)) {
+    return response.data.results;
+  }
+  
+  console.warn('Unexpected cars response format:', response.data);
+  return [];
 }
 
 /**

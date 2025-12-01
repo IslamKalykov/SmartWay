@@ -1,89 +1,116 @@
 // src/api/trips.ts
 import api from './client';
+import type { SearchFilters } from '../components/SearchFilter';
 
 export interface Trip {
   id: number;
-  from_location: string;
-  to_location: string;
+  from_location: number | string;
+  to_location: number | string;
+  from_location_display?: string;
+  to_location_display?: string;
   departure_time: string;
   passengers_count: number;
-  price: string | number | null;
+  price?: string | number | null;
   is_negotiable: boolean;
-  status: 'open' | 'taken' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
+  status: string;
   contact_phone?: string;
   comment?: string;
   
-  prefer_verified_driver?: boolean;
-  allow_smoking?: boolean;
-  has_luggage?: boolean;
-  with_child?: boolean;
-  with_pet?: boolean;
-  
-  passenger: number;
-  passenger_name: string;
+  // Пассажир
+  passenger?: number;
+  passenger_name?: string;
   passenger_phone?: string;
-  passenger_photo?: string;
   passenger_verified?: boolean;
+  passenger_telegram?: string;
   
-  driver?: number;
-  driver_name?: string;
-  driver_phone?: string;
-  driver_photo?: string;
-  driver_verified?: boolean;
+  // Водитель
+  driver?: number | null;
+  driver_name?: string | null;
+  driver_phone?: string | null;
+  driver_verified?: boolean | null;
   
-  car?: number;
-  car_info?: {
-    id: number;
-    brand: string;
-    model: string;
-    color?: string;
-    plate_number: string;
-    passenger_seats: number;
-  };
+  // Условия
+  allow_smoking?: boolean;
+  allow_pets?: boolean;
+  allow_big_luggage?: boolean;
+  baggage_help?: boolean;
+  with_child?: boolean;
+  prefer_verified_driver?: boolean;
+  extra_rules?: string;
   
   created_at: string;
   updated_at?: string;
 }
 
 export interface TripCreateData {
-  from_location: string;
-  to_location: string;
+  from_location: number;
+  to_location: number;
   departure_time: string;
   passengers_count: number;
-  price?: number;
+  price?: number | null;
   is_negotiable?: boolean;
   contact_phone?: string;
   comment?: string;
   prefer_verified_driver?: boolean;
   allow_smoking?: boolean;
-  has_luggage?: boolean;
+  allow_pets?: boolean;
+  allow_big_luggage?: boolean;
+  baggage_help?: boolean;
   with_child?: boolean;
-  with_pet?: boolean;
+  extra_rules?: string;
 }
 
 // ============ Trips API (Заказы пассажиров) ============
 
-export async function fetchAvailableTrips(params?: {
-  from?: string;
-  to?: string;
-}): Promise<Trip[]> {
-  const resp = await api.get('/trips/available/', { params });
-  return resp.data;
+export async function fetchAvailableTrips(filters?: SearchFilters): Promise<Trip[]> {
+  const params: Record<string, any> = {};
+  
+  if (filters?.from_location) params.from_location = filters.from_location;
+  if (filters?.to_location) params.to_location = filters.to_location;
+  if (filters?.date) params.date = filters.date;
+  
+  const response = await api.get('/trips/available/', { params });
+  
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  if (response.data?.results) {
+    return response.data.results;
+  }
+  return [];
 }
 
 export async function fetchMyTrips(): Promise<Trip[]> {
   const resp = await api.get('/trips/my/');
-  return resp.data;
+  if (Array.isArray(resp.data)) {
+    return resp.data;
+  }
+  if (resp.data?.results) {
+    return resp.data.results;
+  }
+  return [];
 }
 
 export async function fetchMyActiveTrips(): Promise<Trip[]> {
   const resp = await api.get('/trips/my-active/');
-  return resp.data;
+  if (Array.isArray(resp.data)) {
+    return resp.data;
+  }
+  if (resp.data?.results) {
+    return resp.data.results;
+  }
+  return [];
 }
 
 export async function fetchMyCompletedTrips(): Promise<Trip[]> {
   const resp = await api.get('/trips/my-completed/');
-  return resp.data;
+  if (Array.isArray(resp.data)) {
+    return resp.data;
+  }
+  if (resp.data?.results) {
+    return resp.data.results;
+  }
+  return [];
 }
 
 export async function getTripDetail(id: number): Promise<Trip> {
@@ -140,12 +167,24 @@ export interface Review {
 
 export async function getMyReceivedReviews(): Promise<Review[]> {
   const resp = await api.get('/reviews/my_received/');
-  return resp.data;
+  if (Array.isArray(resp.data)) {
+    return resp.data;
+  }
+  if (resp.data?.results) {
+    return resp.data.results;
+  }
+  return [];
 }
 
 export async function getMyWrittenReviews(): Promise<Review[]> {
   const resp = await api.get('/reviews/my_written/');
-  return resp.data;
+  if (Array.isArray(resp.data)) {
+    return resp.data;
+  }
+  if (resp.data?.results) {
+    return resp.data.results;
+  }
+  return [];
 }
 
 export async function createReview(data: {

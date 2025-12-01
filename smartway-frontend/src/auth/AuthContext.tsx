@@ -45,9 +45,13 @@ import {
       }
     }, []);
   
+    // Замените функцию login на эту:
     const login = (data: { access: string; refresh?: string; user?: User }) => {
-      localStorage.setItem('access_token', data.access);
-      if (data.refresh) {
+      // Проверяем что токен реально есть
+      if (data.access && data.access !== 'undefined') {
+        localStorage.setItem('access_token', data.access);
+      }
+      if (data.refresh && data.refresh !== 'undefined') {
         localStorage.setItem('refresh_token', data.refresh);
       }
       if (data.user) {

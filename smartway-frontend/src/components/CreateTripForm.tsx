@@ -19,7 +19,7 @@ interface CreateTripFormProps {
 }
 
 export default function CreateTripForm({ onSuccess, onCancel }: CreateTripFormProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [fromLocationId, setFromLocationId] = useState<number | undefined>();
@@ -28,11 +28,10 @@ export default function CreateTripForm({ onSuccess, onCancel }: CreateTripFormPr
     try {
       setLoading(true);
       
+      // Отправляем ID локаций, а не строки!
       const data = {
-        from_location: values.from_location_display || `Location ${values.from_location}`,
-        to_location: values.to_location_display || `Location ${values.to_location}`,
-        from_location_obj: values.from_location,
-        to_location_obj: values.to_location,
+        from_location: values.from_location,  // ID локации
+        to_location: values.to_location,      // ID локации
         departure_time: values.departure_time.toISOString(),
         passengers_count: values.passengers_count || 1,
         price: values.price || null,
@@ -46,29 +45,32 @@ export default function CreateTripForm({ onSuccess, onCancel }: CreateTripFormPr
         extra_rules: values.extra_rules || '',
       };
       
+      console.log('Creating trip with data:', data);  // Для отладки
+      
       await createTrip(data);
       message.success(t('common.success'));
       form.resetFields();
       onSuccess?.();
     } catch (error: any) {
-      console.error(error);
-      message.error(error?.response?.data?.detail || t('errors.serverError'));
+      console.error('Create trip error:', error?.response?.data || error);
+      const errorData = error?.response?.data;
+      
+      // Показываем детальную ошибку
+      if (typeof errorData === 'object') {
+        const messages = Object.entries(errorData)
+          .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+          .join('\n');
+        message.error(messages || t('errors.serverError'));
+      } else {
+        message.error(errorData?.detail || t('errors.serverError'));
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFromLocationChange = (id: number, location?: any) => {
+  const handleFromLocationChange = (id: number) => {
     setFromLocationId(id);
-    if (location) {
-      form.setFieldValue('from_location_display', location.name);
-    }
-  };
-
-  const handleToLocationChange = (id: number, location?: any) => {
-    if (location) {
-      form.setFieldValue('to_location_display', location.name);
-    }
   };
 
   // Запрет выбора прошедших дат
@@ -93,16 +95,9 @@ export default function CreateTripForm({ onSuccess, onCancel }: CreateTripFormPr
           allow_pets: false,
           allow_big_luggage: false,
           baggage_help: false,
+          with_child: false,
         }}
       >
-        {/* Скрытые поля для названий локаций */}
-        <Form.Item name="from_location_display" hidden>
-          <Input />
-        </Form.Item>
-        <Form.Item name="to_location_display" hidden>
-          <Input />
-        </Form.Item>
-
         {/* Откуда */}
         <Form.Item
           name="from_location"
@@ -125,7 +120,6 @@ export default function CreateTripForm({ onSuccess, onCancel }: CreateTripFormPr
           <LocationSelect
             placeholder={t('search.toPlaceholder')}
             excludeId={fromLocationId}
-            onChange={handleToLocationChange}
             size="large"
           />
         </Form.Item>
@@ -161,29 +155,33 @@ export default function CreateTripForm({ onSuccess, onCancel }: CreateTripFormPr
         </Form.Item>
 
         {/* Цена */}
-        <Space style={{ width: '100%' }} align="start">
-          <Form.Item
-            name="price"
-            label={t('create.priceLabel')}
-            style={{ flex: 1 }}
-          >
-            <InputNumber
-              min={0}
-              max={100000}
-              style={{ width: '100%' }}
+        <Form.Item label={t('create.priceLabel')}>
+          <Space.Compact style={{ width: '100%' }}>
+            <Form.Item name="price" noStyle>
+              <InputNumber
+                min={0}
+                max={100000}
+                style={{ width: '70%' }}
+                size="large"
+                placeholder="0"
+              />
+            </Form.Item>
+            <Input
+              style={{ width: '30%' }}
+              disabled
+              value="сом"
               size="large"
-              addonAfter="сом"
             />
-          </Form.Item>
+          </Space.Compact>
+        </Form.Item>
 
-          <Form.Item
-            name="is_negotiable"
-            label={t('create.negotiableLabel')}
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-        </Space>
+        <Form.Item
+          name="is_negotiable"
+          label={t('create.negotiableLabel')}
+          valuePropName="checked"
+        >
+          <Switch />
+        </Form.Item>
 
         {/* Комментарий */}
         <Form.Item

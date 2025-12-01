@@ -219,5 +219,9 @@
         "en": "English",
         "ky": "Кыргызча",
         "select": "Выберите язык"
+    },
+    "contact": {
+        "telegram": "Написать в Telegram",
+        "call": "Позвонить"
     }
 }

@@ -7,13 +7,15 @@ import {
   DollarOutlined,
   CheckCircleOutlined,
   ArrowRightOutlined,
+  PhoneOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { RideOptionsDisplay } from './RideOptionsForm';
 import type { Trip } from '../api/trips';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface TripCardProps {
   trip: Trip;
@@ -21,7 +23,8 @@ interface TripCardProps {
   onAction?: () => void;
   actionLabel?: string;
   actionLoading?: boolean;
-  showPassengerInfo?: boolean;  // Показывать инфо о пассажире (для водителей)
+  showPassengerInfo?: boolean;
+  showContactButtons?: boolean;  // Показывать кнопки связи
 }
 
 export default function TripCard({
@@ -31,6 +34,7 @@ export default function TripCard({
   actionLabel,
   actionLoading,
   showPassengerInfo = false,
+  showContactButtons = false,
 }: TripCardProps) {
   const { t } = useTranslation();
 
@@ -55,9 +59,30 @@ export default function TripCard({
     ? t('common.tomorrow')
     : departureDate.format('DD MMM');
 
-  // Используем локализованные названия если есть
   const fromLocation = trip.from_location_display || trip.from_location;
   const toLocation = trip.to_location_display || trip.to_location;
+
+  // Форматируем телефон для ссылки
+  const phoneNumber = trip.contact_phone || trip.passenger_phone;
+  const cleanPhone = phoneNumber?.replace(/\D/g, '');
+
+  // Открыть Telegram
+  const handleTelegram = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (trip.passenger_telegram) {
+      window.open(`https://t.me/${trip.passenger_telegram}`, '_blank');
+    } else if (cleanPhone) {
+      window.open(`https://t.me/+${cleanPhone}`, '_blank');
+    }
+  };
+
+  // Позвонить
+  const handleCall = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (cleanPhone) {
+      window.location.href = `tel:+${cleanPhone}`;
+    }
+  };
 
   return (
     <Card
@@ -68,7 +93,7 @@ export default function TripCard({
         marginBottom: 12,
         cursor: onClick ? 'pointer' : 'default',
       }}
-      bodyStyle={{ padding: 16 }}
+      styles={{ body: { padding: 16 } }}
     >
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         {/* Маршрут */}
@@ -95,19 +120,24 @@ export default function TripCard({
             </Text>
           </Space>
 
-          {trip.price && (
-            <Space size={4}>
-              <DollarOutlined style={{ color: '#52c41a' }} />
-              <Text strong style={{ color: '#52c41a' }}>
-                {trip.price} сом
-              </Text>
-              {trip.is_negotiable && (
-                <Tag color="orange" style={{ marginLeft: 4 }}>
-                  {t('trip.negotiable')}
-                </Tag>
-              )}
-            </Space>
-          )}
+          {/* Цена или Договорная */}
+          <Space size={4}>
+            <DollarOutlined style={{ color: '#52c41a' }} />
+            {trip.price ? (
+              <>
+                <Text strong style={{ color: '#52c41a' }}>
+                  {trip.price} сом
+                </Text>
+                {trip.is_negotiable && (
+                  <Tag color="orange" style={{ marginLeft: 4 }}>
+                    {t('trip.negotiable')}
+                  </Tag>
+                )}
+              </>
+            ) : (
+              <Tag color="orange">{t('trip.negotiable')}</Tag>
+            )}
+          </Space>
         </div>
 
         {/* Условия поездки */}
@@ -117,6 +147,7 @@ export default function TripCard({
             allow_pets: trip.allow_pets,
             allow_big_luggage: trip.allow_big_luggage,
             baggage_help: trip.baggage_help,
+            with_child: trip.with_child,
           }}
           compact
         />
@@ -126,16 +157,42 @@ export default function TripCard({
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
+            justifyContent: 'space-between',
             gap: 8,
             padding: '8px 0',
             borderTop: '1px solid #f0f0f0',
           }}>
-            <Avatar size="small" icon={<UserOutlined />} />
-            <Text>{trip.passenger_name}</Text>
-            {trip.passenger_verified && (
-              <Tooltip title={t('profile.verifiedPassenger')}>
-                <CheckCircleOutlined style={{ color: '#52c41a' }} />
-              </Tooltip>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Avatar size="small" icon={<UserOutlined />} />
+              <Text>{trip.passenger_name}</Text>
+              {trip.passenger_verified && (
+                <Tooltip title={t('profile.verifiedPassenger')}>
+                  <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                </Tooltip>
+              )}
+            </div>
+
+            {/* Кнопки связи */}
+            {showContactButtons && (phoneNumber || trip.passenger_telegram) && (
+              <Space size={8}>
+                <Tooltip title={t('contact.telegram')}>
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<MessageOutlined />}
+                    onClick={handleTelegram}
+                  />
+                </Tooltip>
+                {phoneNumber && (
+                  <Tooltip title={t('contact.call')}>
+                    <Button
+                      size="small"
+                      icon={<PhoneOutlined />}
+                      onClick={handleCall}
+                    />
+                  </Tooltip>
+                )}
+              </Space>
             )}
           </div>
         )}

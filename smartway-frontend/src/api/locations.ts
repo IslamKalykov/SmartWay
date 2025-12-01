@@ -4,7 +4,7 @@ import api from './client';
 export interface Location {
   id: number;
   code: string;
-  name: string;
+  name: string;  // Вычисляемое поле на основе языка
   name_ru?: string;
   name_en?: string;
   name_ky?: string;
@@ -22,6 +22,17 @@ interface PaginatedResponse<T> {
 }
 
 /**
+ * Добавляет поле `name` на основе текущего языка
+ */
+function transformLocation(loc: any, lang: string): Location {
+  const nameKey = `name_${lang}` as keyof typeof loc;
+  return {
+    ...loc,
+    name: loc[nameKey] || loc.name_ru || loc.name_en || loc.code,
+  };
+}
+
+/**
  * Получить список всех локаций
  */
 export async function fetchLocations(lang: string = 'ru', search?: string): Promise<Location[]> {
@@ -32,17 +43,20 @@ export async function fetchLocations(lang: string = 'ru', search?: string): Prom
   
   const response = await api.get('/locations/', { params });
   
+  let locations: any[] = [];
+  
   // Обработка пагинированного ответа
   if (Array.isArray(response.data)) {
-    return response.data;
-  }
-  // Если это объект с results (пагинация DRF)
-  if (response.data && Array.isArray(response.data.results)) {
-    return response.data.results;
+    locations = response.data;
+  } else if (response.data && Array.isArray(response.data.results)) {
+    locations = response.data.results;
+  } else {
+    console.warn('Unexpected locations response format:', response.data);
+    return [];
   }
   
-  console.warn('Unexpected locations response format:', response.data);
-  return [];
+  // Трансформируем каждую локацию, добавляя поле name
+  return locations.map(loc => transformLocation(loc, lang));
 }
 
 /**
@@ -51,16 +65,20 @@ export async function fetchLocations(lang: string = 'ru', search?: string): Prom
 export async function fetchPopularLocations(lang: string = 'ru'): Promise<Location[]> {
   const response = await api.get('/locations/popular/', { params: { lang } });
   
+  let locations: any[] = [];
+  
   // Обработка пагинированного ответа
   if (Array.isArray(response.data)) {
-    return response.data;
-  }
-  if (response.data && Array.isArray(response.data.results)) {
-    return response.data.results;
+    locations = response.data;
+  } else if (response.data && Array.isArray(response.data.results)) {
+    locations = response.data.results;
+  } else {
+    console.warn('Unexpected popular locations response format:', response.data);
+    return [];
   }
   
-  console.warn('Unexpected popular locations response format:', response.data);
-  return [];
+  // Трансформируем каждую локацию, добавляя поле name
+  return locations.map(loc => transformLocation(loc, lang));
 }
 
 /**
@@ -68,7 +86,7 @@ export async function fetchPopularLocations(lang: string = 'ru'): Promise<Locati
  */
 export async function fetchLocationById(id: number, lang: string = 'ru'): Promise<Location> {
   const response = await api.get(`/locations/${id}/`, { params: { lang } });
-  return response.data;
+  return transformLocation(response.data, lang);
 }
 
 export default {

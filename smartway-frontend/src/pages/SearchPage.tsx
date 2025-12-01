@@ -57,64 +57,29 @@ export default function SearchPage() {
     loadData();
   }, [isAuth, isDriver]);
   
-  const loadData = async () => {
+  const loadData = async (searchFilters?: SearchFilters) => {
     setError(null);
+    const currentFilters = searchFilters || filters;
     
     try {
       setLoading(true);
       
-      console.log('[SearchPage] Loading data, isDriver:', isDriver);
-      
       if (isDriver) {
-        // Водитель видит заказы пассажиров
         const results = await Promise.allSettled([
-          fetchAvailableTrips(),
+          fetchAvailableTrips(currentFilters),  // ← передаём фильтры
           getMyCars(),
         ]);
         
-        // Обрабатываем trips
         if (results[0].status === 'fulfilled') {
           setTrips(results[0].value || []);
-        } else {
-          console.error('Failed to load trips:', results[0].reason);
-          const status = results[0].reason?.response?.status;
-          if (status === 401) {
-            localStorage.removeItem('access_token');
-            setError('Сессия истекла, авторизуйтесь заново');
-          } else if (status === 403) {
-            setError('Для просмотра заказов нужно пройти верификацию водителя');
-          }
         }
-        
-        // Обрабатываем cars
         if (results[1].status === 'fulfilled') {
           setCars(results[1].value || []);
-        } else {
-          console.error('Failed to load cars:', results[1].reason);
         }
-        
       } else {
-        // Пассажир видит объявления водителей
-        try {
-          const announcementsData = await fetchAvailableAnnouncements();
-          setAnnouncements(announcementsData || []);
-        } catch (err: any) {
-          console.error('Failed to load announcements:', err);
-      
-          const status = err?.response?.status;
-      
-          if (status === 401) {
-            // токен невалиден — можно почистить и попросить заново авторизоваться
-            // localStorage.removeItem('access_token');
-            setError('Сессия истекла, авторизуйтесь заново');
-          } else if (status === 403) {
-            setError('Нет доступа к объявлениям');
-          } else {
-            setError('Ошибка загрузки объявлений');
-          }
-        }
+        const announcementsData = await fetchAvailableAnnouncements(currentFilters);
+        setAnnouncements(announcementsData || []);
       }
-      
     } catch (err: any) {
       console.error('Load data error:', err);
       setError(err?.message || 'Ошибка загрузки данных');
@@ -125,7 +90,7 @@ export default function SearchPage() {
 
   const handleSearch = async (newFilters: SearchFilters) => {
     setFilters(newFilters);
-    loadData();
+    loadData(newFilters);  // ← передаём новые фильтры
   };
 
   // === Действия для пассажира ===
@@ -153,8 +118,8 @@ export default function SearchPage() {
 
   // === Действия для водителя ===
   const handleTakeTrip = async () => {
-    if (!selectedTrip || cars.length === 0) return;
-
+    if (!selectedTrip || !cars || cars.length === 0) return;
+  
     try {
       setActionLoading(true);
       await takeTrip(selectedTrip.id, cars[0].id);
@@ -232,6 +197,7 @@ export default function SearchPage() {
                 onAction={() => setSelectedTrip(trip)}
                 actionLabel={t('trip.take')}
                 showPassengerInfo={true}
+                showContactButtons={true}  // ← ДОБАВИЛИ
               />
             ))}
           </div>
@@ -330,7 +296,7 @@ export default function SearchPage() {
         okText={t('common.confirm')}
         cancelText={t('common.cancel')}
         confirmLoading={actionLoading}
-        okButtonProps={{ disabled: cars.length === 0 }}
+        okButtonProps={{ disabled: !cars || cars.length === 0 }}
       >
         {selectedTrip && (
           <div>
@@ -347,7 +313,7 @@ export default function SearchPage() {
               </Text>
             </div>
 
-            {cars.length === 0 ? (
+            {!cars || cars.length === 0 ? (
               <div style={{ color: '#ff4d4f' }}>
                 {t('create.addCar')} — {t('profile.myCars')}
               </div>
@@ -356,7 +322,7 @@ export default function SearchPage() {
                 <Text type="secondary">{t('create.carLabel')}:</Text>
                 <br />
                 <Text strong>
-                  {cars[0].brand} {cars[0].model} ({cars[0].plate_number})
+                  {cars[0]?.brand} {cars[0]?.model} ({cars[0]?.plate_number})
                 </Text>
               </div>
             )}
