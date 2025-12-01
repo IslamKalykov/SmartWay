@@ -42,10 +42,13 @@ export default function LocationSelect({
         fetchLocations(i18n.language),
         fetchPopularLocations(i18n.language),
       ]);
-      setLocations(allLocs);
-      setPopularLocations(popularLocs);
+      // Убеждаемся что это массивы
+      setLocations(Array.isArray(allLocs) ? allLocs : []);
+      setPopularLocations(Array.isArray(popularLocs) ? popularLocs : []);
     } catch (error) {
       console.error('Failed to load locations:', error);
+      setLocations([]);
+      setPopularLocations([]);
     } finally {
       setLoading(false);
     }
@@ -53,6 +56,11 @@ export default function LocationSelect({
 
   // Фильтрация локаций
   const filteredLocations = useMemo(() => {
+    // Защита от undefined
+    if (!Array.isArray(locations)) {
+      return [];
+    }
+    
     let result = locations;
     
     // Исключаем определённую локацию
@@ -64,8 +72,8 @@ export default function LocationSelect({
     if (searchValue) {
       const search = searchValue.toLowerCase();
       result = result.filter(loc => 
-        loc.name.toLowerCase().includes(search) ||
-        loc.code.toLowerCase().includes(search) ||
+        loc.name?.toLowerCase().includes(search) ||
+        loc.code?.toLowerCase().includes(search) ||
         (loc.region && loc.region.toLowerCase().includes(search))
       );
     }
@@ -75,6 +83,9 @@ export default function LocationSelect({
 
   // Популярные локации для быстрого выбора
   const popularOptions = useMemo(() => {
+    if (!Array.isArray(popularLocations)) {
+      return [];
+    }
     return popularLocations
       .filter(loc => loc.id !== excludeId)
       .slice(0, 5);
@@ -88,6 +99,11 @@ export default function LocationSelect({
 
   // Группируем по регионам если не в поиске
   const groupedOptions = useMemo(() => {
+    // Защита
+    if (!Array.isArray(filteredLocations) || filteredLocations.length === 0) {
+      return [];
+    }
+    
     if (searchValue) {
       // При поиске показываем плоский список
       return filteredLocations.map(loc => ({
@@ -128,6 +144,38 @@ export default function LocationSelect({
     }));
   }, [filteredLocations, searchValue]);
 
+  // Кастомный рендер popup (вместо устаревшего dropdownRender)
+  const renderPopup = (menu: React.ReactNode) => (
+    <div>
+      {/* Популярные города */}
+      {!searchValue && popularOptions.length > 0 && (
+        <div style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0' }}>
+          <div style={{ color: '#999', fontSize: 12, marginBottom: 8 }}>
+            Популярные
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {popularOptions.map(loc => (
+              <span
+                key={loc.id}
+                onClick={() => handleChange(loc.id)}
+                style={{
+                  padding: '2px 8px',
+                  background: '#f5f5f5',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                }}
+              >
+                {loc.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {menu}
+    </div>
+  );
+
   return (
     <Select
       value={value}
@@ -144,36 +192,7 @@ export default function LocationSelect({
       options={groupedOptions}
       allowClear
       optionFilterProp="label"
-      dropdownRender={(menu) => (
-        <div>
-          {/* Популярные города */}
-          {!searchValue && popularOptions.length > 0 && (
-            <div style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0' }}>
-              <div style={{ color: '#999', fontSize: 12, marginBottom: 8 }}>
-                Популярные
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {popularOptions.map(loc => (
-                  <span
-                    key={loc.id}
-                    onClick={() => handleChange(loc.id)}
-                    style={{
-                      padding: '2px 8px',
-                      background: '#f5f5f5',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                    }}
-                  >
-                    {loc.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {menu}
-        </div>
-      )}
+      popupRender={renderPopup}
     />
   );
 }

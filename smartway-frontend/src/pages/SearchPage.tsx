@@ -1,13 +1,13 @@
 // src/pages/SearchPage.tsx
 import { useState, useEffect } from 'react';
 import {
-  Typography, Empty, Spin, Tabs, message, Modal, InputNumber, Form, Input
+  Typography, Empty, Spin, Modal, InputNumber, Form, Input, message, Alert
 } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
-import SearchFilter, { SearchFilters } from '../components/SearchFilter';
+import SearchFilter from '../components/SearchFilter';
+import type { SearchFilters } from '../components/SearchFilter';
 import TripCard from '../components/TripCard';
 import AnnouncementCard from '../components/AnnouncementCard';
 
@@ -28,11 +28,11 @@ const { TextArea } = Input;
 
 export default function SearchPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const isDriver = user?.is_driver;
+  const { user, isAuth } = useAuth();
+  const isDriver = user?.is_driver ?? false;
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
@@ -46,28 +46,78 @@ export default function SearchPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
+    console.log('[SearchPage] isAuth:', isAuth, 'isDriver:', isDriver);
+  
+    if (!isAuth) {
+      setLoading(false);
+      setError('Требуется авторизация');
+      return;
+    }
+  
     loadData();
-  }, [isDriver]);
-
+  }, [isAuth, isDriver]);
+  
   const loadData = async () => {
+    setError(null);
+    
     try {
       setLoading(true);
+      
+      console.log('[SearchPage] Loading data, isDriver:', isDriver);
+      
       if (isDriver) {
         // Водитель видит заказы пассажиров
-        const [tripsData, carsData] = await Promise.all([
+        const results = await Promise.allSettled([
           fetchAvailableTrips(),
           getMyCars(),
         ]);
-        setTrips(tripsData);
-        setCars(carsData);
+        
+        // Обрабатываем trips
+        if (results[0].status === 'fulfilled') {
+          setTrips(results[0].value || []);
+        } else {
+          console.error('Failed to load trips:', results[0].reason);
+          const status = results[0].reason?.response?.status;
+          if (status === 401) {
+            localStorage.removeItem('access_token');
+            setError('Сессия истекла, авторизуйтесь заново');
+          } else if (status === 403) {
+            setError('Для просмотра заказов нужно пройти верификацию водителя');
+          }
+        }
+        
+        // Обрабатываем cars
+        if (results[1].status === 'fulfilled') {
+          setCars(results[1].value || []);
+        } else {
+          console.error('Failed to load cars:', results[1].reason);
+        }
+        
       } else {
         // Пассажир видит объявления водителей
-        const announcementsData = await fetchAvailableAnnouncements();
-        setAnnouncements(announcementsData);
+        try {
+          const announcementsData = await fetchAvailableAnnouncements();
+          setAnnouncements(announcementsData || []);
+        } catch (err: any) {
+          console.error('Failed to load announcements:', err);
+      
+          const status = err?.response?.status;
+      
+          if (status === 401) {
+            // токен невалиден — можно почистить и попросить заново авторизоваться
+            // localStorage.removeItem('access_token');
+            setError('Сессия истекла, авторизуйтесь заново');
+          } else if (status === 403) {
+            setError('Нет доступа к объявлениям');
+          } else {
+            setError('Ошибка загрузки объявлений');
+          }
+        }
       }
-    } catch (error) {
-      console.error(error);
-      message.error(t('errors.serverError'));
+      
+    } catch (err: any) {
+      console.error('Load data error:', err);
+      setError(err?.message || 'Ошибка загрузки данных');
     } finally {
       setLoading(false);
     }
@@ -75,8 +125,6 @@ export default function SearchPage() {
 
   const handleSearch = async (newFilters: SearchFilters) => {
     setFilters(newFilters);
-    // TODO: Реализовать фильтрацию на бэкенде
-    // Пока фильтруем на клиенте
     loadData();
   };
 
@@ -96,8 +144,8 @@ export default function SearchPage() {
       setBookingSeats(1);
       setBookingMessage('');
       loadData();
-    } catch (error: any) {
-      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || t('errors.serverError'));
     } finally {
       setActionLoading(false);
     }
@@ -113,22 +161,22 @@ export default function SearchPage() {
       message.success(t('common.success'));
       setSelectedTrip(null);
       loadData();
-    } catch (error: any) {
-      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || t('errors.serverError'));
     } finally {
       setActionLoading(false);
     }
   };
 
   // Фильтрация данных на клиенте
-  const filteredAnnouncements = announcements.filter(ann => {
+  const filteredAnnouncements = (announcements || []).filter(ann => {
     if (filters.allow_smoking && !ann.allow_smoking) return false;
     if (filters.allow_pets && !ann.allow_pets) return false;
     if (filters.allow_big_luggage && !ann.allow_big_luggage) return false;
     return true;
   });
 
-  const filteredTrips = trips.filter(trip => {
+  const filteredTrips = (trips || []).filter(trip => {
     if (filters.allow_smoking && !trip.allow_smoking) return false;
     if (filters.allow_pets && !trip.allow_pets) return false;
     if (filters.allow_big_luggage && !trip.allow_big_luggage) return false;
@@ -151,6 +199,18 @@ export default function SearchPage() {
       <Title level={4} style={{ marginBottom: 16 }}>
         {isDriver ? t('search.titleDriver') : t('search.title')}
       </Title>
+
+      {/* Ошибка */}
+      {error && (
+        <Alert
+          message={error}
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          closable
+          onClose={() => setError(null)}
+        />
+      )}
 
       {/* Фильтр поиска */}
       <SearchFilter

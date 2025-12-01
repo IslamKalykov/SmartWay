@@ -1,7 +1,6 @@
 // src/components/RideOptionsForm.tsx
 import { Form, Switch, Input, Space, Typography, Tooltip } from 'antd';
 import {
-  SmokingOutlined,
   HeartOutlined,
   ShoppingOutlined,
   TeamOutlined,
@@ -24,7 +23,7 @@ export default function RideOptionsForm({ mode, layout = 'vertical' }: RideOptio
     {
       name: 'allow_smoking',
       label: t('rideOptions.allowSmoking'),
-      icon: <SmokingOutlined />,
+      icon: <span>🚬</span>,
       show: true,
     },
     {

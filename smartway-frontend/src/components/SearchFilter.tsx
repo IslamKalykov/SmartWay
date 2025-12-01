@@ -8,14 +8,15 @@ import LocationSelect from './LocationSelect';
 
 const { Text } = Typography;
 
-export interface SearchFilters {
+// Экспортируем тип
+export type SearchFilters = {
   from_location?: number;
   to_location?: number;
   date?: string;
   allow_smoking?: boolean;
   allow_pets?: boolean;
   allow_big_luggage?: boolean;
-}
+};
 
 interface SearchFilterProps {
   onSearch: (filters: SearchFilters) => void;
@@ -49,7 +50,7 @@ export default function SearchFilter({
 
   return (
     <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Основные фильтры */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
@@ -156,7 +157,7 @@ export default function SearchFilter({
             {t('search.searchBtn')}
           </Button>
         </div>
-      </Space>
+      </div>
     </Card>
   );
 }

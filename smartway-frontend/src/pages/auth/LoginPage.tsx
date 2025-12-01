@@ -45,16 +45,51 @@ export default function LoginPage() {
       setLoading(true);
       const result = await verifyOtp(phone, values.code);
 
-      // Сохраняем токены
-      localStorage.setItem('access_token', result.access);
-      localStorage.setItem('refresh_token', result.refresh);
+      // DEBUG: Смотрим что пришло от бэкенда
+      console.log('=== verify-otp response ===');
+      console.log('Full result:', result);
+      console.log('Keys:', Object.keys(result));
 
-      // Обновляем контекст
-      await login(result.access, result.refresh);
+      // Пробуем разные варианты ключей токенов
+      const accessToken = result.access || result.access_token || result.token;
+      const refreshToken = result.refresh || result.refresh_token;
+
+      console.log('accessToken:', accessToken);
+      console.log('refreshToken:', refreshToken);
+
+      if (!accessToken) {
+        console.error('No access token in response!', result);
+        message.error('Сервер не вернул токен авторизации');
+        return;
+      }
+
+      // 1. Сохраняем токены в localStorage
+      localStorage.setItem('access_token', accessToken);
+      if (refreshToken) {
+        localStorage.setItem('refresh_token', refreshToken);
+      }
+      
+      // 2. Сохраняем user если есть
+      if (result.user) {
+        localStorage.setItem('user', JSON.stringify(result.user));
+      }
+
+      console.log('Tokens saved to localStorage');
+      console.log('localStorage access_token:', localStorage.getItem('access_token'));
+
+      // 3. Небольшая задержка чтобы localStorage успел сохраниться
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 4. Обновляем контекст авторизации
+      await login(accessToken, refreshToken || '');
 
       message.success(t('common.success'));
-      navigate('/search');
+      
+      // 5. Переходим на страницу поиска
+      navigate('/search', { replace: true });
+      
     } catch (error: any) {
+      console.error('verify-otp error:', error);
       const detail = error?.response?.data?.detail;
       message.error(detail || t('errors.serverError'));
     } finally {
@@ -84,11 +119,11 @@ export default function LoginPage() {
           borderRadius: 12,
           boxShadow: isMobile ? 'none' : '0 4px 12px rgba(0,0,0,0.08)',
         }}
-        bodyStyle={{ padding: isMobile ? 20 : 32 }}
+        styles={{ body: { padding: isMobile ? 20 : 32 } }}
       >
-        <Space direction="vertical" size={24} style={{ width: '100%' }}>
+        <Space size={24} style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'center', width: '100%' }}>
             <Title level={isMobile ? 4 : 3} style={{ marginBottom: 8 }}>
               {t('auth.loginTitle')}
             </Title>
@@ -104,6 +139,7 @@ export default function LoginPage() {
               layout="vertical"
               onFinish={handleSendOtp}
               size={isMobile ? 'middle' : 'large'}
+              style={{ width: '100%' }}
             >
               <Form.Item
                 label={t('auth.phoneLabel')}
@@ -140,13 +176,14 @@ export default function LoginPage() {
 
           {/* OTP Step */}
           {step === 'otp' && (
-            <>
+            <div style={{ width: '100%' }}>
               <div
                 style={{
                   padding: 16,
                   background: '#f5f5f5',
                   borderRadius: 8,
                   textAlign: 'center',
+                  marginBottom: 24,
                 }}
               >
                 <Text type="secondary" style={{ fontSize: 14 }}>
@@ -180,7 +217,7 @@ export default function LoginPage() {
                 </Form.Item>
 
                 <Form.Item style={{ marginBottom: 0 }}>
-                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <Button
                       type="primary"
                       htmlType="submit"
@@ -198,18 +235,19 @@ export default function LoginPage() {
                     >
                       {t('auth.changePhone')}
                     </Button>
-                  </Space>
+                  </div>
                 </Form.Item>
               </Form>
-            </>
+            </div>
           )}
 
           {/* Footer */}
-          <Divider style={{ margin: 0 }} />
-
-          <div style={{ textAlign: 'center' }}>
-            <Text type="secondary">{t('auth.noAccount')} </Text>
-            <Link to="/register">{t('auth.registerLink')}</Link>
+          <div style={{ width: '100%' }}>
+            <Divider style={{ margin: '0 0 16px 0' }} />
+            <div style={{ textAlign: 'center' }}>
+              <Text type="secondary">{t('auth.noAccount')} </Text>
+              <Link to="/register">{t('auth.registerLink')}</Link>
+            </div>
           </div>
         </Space>
       </Card>

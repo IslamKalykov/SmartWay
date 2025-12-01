@@ -1,6 +1,7 @@
 // src/api/auth.ts
 import api from './client';
 
+// === Типы ===
 export interface User {
   id: number;
   phone_number: string;
@@ -12,179 +13,192 @@ export interface User {
   is_driver: boolean;
   is_verified_driver: boolean;
   is_verified_passenger: boolean;
-  is_approved: boolean;
-  public_id?: string;
   trips_completed_as_driver: number;
   trips_completed_as_passenger: number;
-  average_rating_as_driver?: number;
-  average_rating_as_passenger?: number;
-  reviews_count_as_driver: number;
-  reviews_count_as_passenger: number;
-  cars?: Car[];
-  created_at: string;
+  average_rating?: number;
+  telegram_chat_id?: number;
 }
 
 export interface Car {
   id: number;
-  owner: number;
-  owner_name?: string;
-  owner_photo?: string;
-  owner_verified?: boolean;
-  owner_rating?: number;
   brand: string;
   model: string;
-  year?: number;
-  color?: string;
-  car_type: string;
-  full_name: string;
+  year: number;
+  color: string;
   plate_number: string;
+  car_type: string;
   passenger_seats: number;
   photo?: string;
+  is_verified: boolean;
   has_air_conditioning: boolean;
   has_wifi: boolean;
   has_child_seat: boolean;
   allows_smoking: boolean;
   allows_pets: boolean;
   has_luggage_space: boolean;
-  is_active: boolean;
-  is_verified: boolean;
 }
 
-export interface AuthResponse {
+export interface AuthTokens {
   access: string;
-  refresh: string;
-  user: User;
+  refresh?: string;
+  user?: User;
 }
 
-// ============ Auth API ============
-
-export async function sendOtp(data: { phone_number: string }): Promise<void> {
-  await api.post('/users/send-otp/', data);
+// === Auth API ===
+export interface AuthTokensRaw {
+  access?: string;
+  access_token?: string;
+  token?: string;
+  refresh?: string;
+  refresh_token?: string;
+  user?: User;
+  [key: string]: any;
 }
 
-export async function verifyOtp(data: {
-  phone_number: string;
-  otp_code: string;
-  full_name?: string;
-  role?: 'driver' | 'passenger';
-}): Promise<AuthResponse> {
-  const resp = await api.post<AuthResponse>('/users/verify-otp/', data);
-  return resp.data;
+
+/**
+ * Отправить OTP код на номер телефона (через Telegram)
+ */
+export async function sendOtp(phone: string): Promise<{ detail: string }> {
+  const response = await api.post('/users/send-otp/', {
+    phone_number: phone,
+  });
+  return response.data;
 }
 
-// ============ Profile API ============
+/**
+ * Нормализуем любые названия полей токенов в один формат
+ */
+function normalizeTokens(data: AuthTokensRaw): AuthTokens {
+  const access =
+    data.access ||
+    data.access_token ||
+    data.token ||
+    '';
 
+  const refresh =
+    data.refresh ||
+    data.refresh_token;
+
+  if (!access) {
+    // Здесь можно ещё логировать data, чтобы увидеть, что реально приходит
+    console.error('No access token in response', data);
+    throw new Error('Auth response does not contain access token');
+  }
+
+  return {
+    access,
+    refresh,
+    user: data.user as User | undefined,
+  };
+}
+
+/**
+ * Подтвердить OTP код и получить токены
+ */
+export async function verifyOtp(phone: string, code: string): Promise<AuthTokens> {
+  const response = await api.post('/users/verify-otp/', {
+    phone_number: phone,
+    otp_code: code,
+  });
+
+  const tokens = normalizeTokens(response.data);
+  return tokens;
+}
+
+/**
+ * Обновить токен
+ */
+export async function refreshToken(refresh: string): Promise<AuthTokens> {
+  const response = await api.post('/users/token/refresh/', { refresh });
+  const data = response.data as AuthTokensRaw;
+
+  // Обычно refresh-эндпоинт возвращает только access,
+  // но normalizeTokens это спокойно переварит
+  const tokens = normalizeTokens({
+    ...data,
+    refresh, // чтобы не потерять текущий refresh
+  });
+
+  return tokens;
+}
+
+// === Profile API ===
+
+/**
+ * Получить свой профиль
+ */
 export async function getMyProfile(): Promise<User> {
-  const resp = await api.get<User>('/users/me/');
-  return resp.data;
+  const response = await api.get('/users/me/');
+  return response.data;
 }
 
+/**
+ * Обновить профиль
+ */
 export async function updateProfile(data: Partial<User>): Promise<User> {
-  const resp = await api.patch<User>('/users/me/', data);
-  return resp.data;
+  const response = await api.patch('/users/me/', data);
+  return response.data;
 }
 
-export async function uploadPhoto(file: File): Promise<{ photo_url: string }> {
+/**
+ * Загрузить фото профиля
+ */
+export async function uploadPhoto(file: File): Promise<User> {
   const formData = new FormData();
   formData.append('photo', file);
   
-  const resp = await api.post<{ photo_url: string }>('/users/me/photo/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+  const response = await api.patch('/users/me/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
   });
-  return resp.data;
+  return response.data;
 }
 
-export async function switchRole(role: 'driver' | 'passenger'): Promise<{ is_driver: boolean }> {
-  const resp = await api.post<{ is_driver: boolean }>('/users/me/switch-role/', { role });
-  return resp.data;
-}
+// === Cars API ===
 
-// ============ Public Profile API ============
-
-export async function getUserProfile(userId: number): Promise<User> {
-  const resp = await api.get<User>(`/users/${userId}/profile/`);
-  return resp.data;
-}
-
-// ============ Cars API ============
-
+/**
+ * Получить мои автомобили
+ */
 export async function getMyCars(): Promise<Car[]> {
-  const resp = await api.get<Car[]>('/users/cars/');
-  return resp.data;
+  const response = await api.get('/users/cars/');
+  return response.data;
 }
 
+/**
+ * Создать автомобиль
+ */
 export async function createCar(data: Partial<Car>): Promise<Car> {
-  const resp = await api.post<Car>('/users/cars/', data);
-  return resp.data;
+  const response = await api.post('/users/cars/', data);
+  return response.data;
 }
 
-export async function updateCar(carId: number, data: Partial<Car>): Promise<Car> {
-  const resp = await api.patch<Car>(`/users/cars/${carId}/`, data);
-  return resp.data;
+/**
+ * Обновить автомобиль
+ */
+export async function updateCar(id: number, data: Partial<Car>): Promise<Car> {
+  const response = await api.patch(`/users/cars/${id}/`, data);
+  return response.data;
 }
 
-export async function deleteCar(carId: number): Promise<void> {
-  await api.delete(`/users/cars/${carId}/`);
+/**
+ * Удалить автомобиль
+ */
+export async function deleteCar(id: number): Promise<void> {
+  await api.delete(`/users/cars/${id}/`);
 }
 
-// ============ Drivers API ============
-
-export async function getDriversList(params?: {
-  verified?: boolean;
-  city?: string;
-  seats_min?: number;
-}): Promise<User[]> {
-  const resp = await api.get<User[]>('/users/drivers/', { params });
-  return resp.data;
-}
-
-export async function getDriverDetail(driverId: number): Promise<User> {
-  const resp = await api.get<User>(`/users/drivers/${driverId}/`);
-  return resp.data;
-}
-
-// ============ Verification API ============
-
-export interface VerificationRequest {
-  id: number;
-  verification_type: 'driver' | 'passenger';
-  status: 'pending' | 'approved' | 'rejected';
-  admin_comment?: string;
-  created_at: string;
-}
-
-export async function getVerificationStatus(): Promise<{
-  is_verified_driver: boolean;
-  is_verified_passenger: boolean;
-  pending_driver_verification: boolean;
-  pending_passenger_verification: boolean;
-}> {
-  const resp = await api.get('/users/verification/status/');
-  return resp.data;
-}
-
-export async function createVerificationRequest(
-  data: FormData
-): Promise<VerificationRequest> {
-  const resp = await api.post<VerificationRequest>('/users/verification/', data, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return resp.data;
-}
-
-export async function getMyVerificationRequests(): Promise<VerificationRequest[]> {
-  const resp = await api.get<VerificationRequest[]>('/users/verification/');
-  return resp.data;
-}
-
-// ============ Reviews API ============
-
-export async function getMyReceivedReviews(): Promise<any[]> {
-  const resp = await api.get('/users/me/reviews/received/');
-  return resp.data;
-}
-
-export async function getMyWrittenReviews(): Promise<any[]> {
-  const resp = await api.get('/users/me/reviews/written/');
-  return resp.data;
-}
+// === Экспорт по умолчанию ===
+export default {
+  sendOtp,
+  verifyOtp,
+  refreshToken,
+  getMyProfile,
+  updateProfile,
+  uploadPhoto,
+  getMyCars,
+  createCar,
+  updateCar,
+  deleteCar,
+};
