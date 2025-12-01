@@ -1,0 +1,301 @@
+[{
+        "model": "locations.location",
+        "pk": 1,
+        "fields": {
+            "code": "bishkek",
+            "name_ru": "Бишкек",
+            "name_en": "Bishkek",
+            "name_ky": "Бишкек",
+            "region": "Чуйская область",
+            "sort_order": 1,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 2,
+        "fields": {
+            "code": "osh",
+            "name_ru": "Ош",
+            "name_en": "Osh",
+            "name_ky": "Ош",
+            "region": "Ошская область",
+            "sort_order": 2,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 3,
+        "fields": {
+            "code": "jalalabad",
+            "name_ru": "Джалал-Абад",
+            "name_en": "Jalal-Abad",
+            "name_ky": "Жалал-Абад",
+            "region": "Джалал-Абадская область",
+            "sort_order": 3,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 4,
+        "fields": {
+            "code": "karakol",
+            "name_ru": "Каракол",
+            "name_en": "Karakol",
+            "name_ky": "Каракол",
+            "region": "Иссык-Кульская область",
+            "sort_order": 4,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 5,
+        "fields": {
+            "code": "tokmok",
+            "name_ru": "Токмок",
+            "name_en": "Tokmok",
+            "name_ky": "Токмок",
+            "region": "Чуйская область",
+            "sort_order": 5,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 6,
+        "fields": {
+            "code": "naryn",
+            "name_ru": "Нарын",
+            "name_en": "Naryn",
+            "name_ky": "Нарын",
+            "region": "Нарынская область",
+            "sort_order": 6,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 7,
+        "fields": {
+            "code": "talas",
+            "name_ru": "Талас",
+            "name_en": "Talas",
+            "name_ky": "Талас",
+            "region": "Таласская область",
+            "sort_order": 7,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 8,
+        "fields": {
+            "code": "batken",
+            "name_ru": "Баткен",
+            "name_en": "Batken",
+            "name_ky": "Баткен",
+            "region": "Баткенская область",
+            "sort_order": 8,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 9,
+        "fields": {
+            "code": "cholpon_ata",
+            "name_ru": "Чолпон-Ата",
+            "name_en": "Cholpon-Ata",
+            "name_ky": "Чолпон-Ата",
+            "region": "Иссык-Кульская область",
+            "sort_order": 9,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 10,
+        "fields": {
+            "code": "kant",
+            "name_ru": "Кант",
+            "name_en": "Kant",
+            "name_ky": "Кант",
+            "region": "Чуйская область",
+            "sort_order": 10,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 11,
+        "fields": {
+            "code": "kara_balta",
+            "name_ru": "Кара-Балта",
+            "name_en": "Kara-Balta",
+            "name_ky": "Кара-Балта",
+            "region": "Чуйская область",
+            "sort_order": 11,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 12,
+        "fields": {
+            "code": "balykchy",
+            "name_ru": "Балыкчы",
+            "name_en": "Balykchy",
+            "name_ky": "Балыкчы",
+            "region": "Иссык-Кульская область",
+            "sort_order": 12,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 13,
+        "fields": {
+            "code": "uzgen",
+            "name_ru": "Узген",
+            "name_en": "Uzgen",
+            "name_ky": "Өзгөн",
+            "region": "Ошская область",
+            "sort_order": 13,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 14,
+        "fields": {
+            "code": "kyzyl_kiya",
+            "name_ru": "Кызыл-Кия",
+            "name_en": "Kyzyl-Kiya",
+            "name_ky": "Кызыл-Кыя",
+            "region": "Баткенская область",
+            "sort_order": 14,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 15,
+        "fields": {
+            "code": "isfana",
+            "name_ru": "Исфана",
+            "name_en": "Isfana",
+            "name_ky": "Исфана",
+            "region": "Баткенская область",
+            "sort_order": 15,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 16,
+        "fields": {
+            "code": "mailuu_suu",
+            "name_ru": "Майлуу-Суу",
+            "name_en": "Mailuu-Suu",
+            "name_ky": "Майлуу-Суу",
+            "region": "Джалал-Абадская область",
+            "sort_order": 16,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 17,
+        "fields": {
+            "code": "tash_kumyr",
+            "name_ru": "Таш-Кумыр",
+            "name_en": "Tash-Kumyr",
+            "name_ky": "Таш-Көмүр",
+            "region": "Джалал-Абадская область",
+            "sort_order": 17,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 18,
+        "fields": {
+            "code": "kara_suu",
+            "name_ru": "Кара-Суу",
+            "name_en": "Kara-Suu",
+            "name_ky": "Кара-Суу",
+            "region": "Ошская область",
+            "sort_order": 18,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 19,
+        "fields": {
+            "code": "kochkor",
+            "name_ru": "Кочкор",
+            "name_en": "Kochkor",
+            "name_ky": "Кочкор",
+            "region": "Нарынская область",
+            "sort_order": 19,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "locations.location",
+        "pk": 20,
+        "fields": {
+            "code": "at_bashy",
+            "name_ru": "Ат-Баши",
+            "name_en": "At-Bashy",
+            "name_ky": "Ат-Башы",
+            "region": "Нарынская область",
+            "sort_order": 20,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    }
+]

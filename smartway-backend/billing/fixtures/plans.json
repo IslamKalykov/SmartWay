@@ -1,0 +1,5 @@
+[
+    { "model": "billing.subscriptionplan", "pk": 1, "fields": { "title": "День", "price": "250", "duration_days": 1, "is_active": true } },
+    { "model": "billing.subscriptionplan", "pk": 2, "fields": { "title": "Неделя", "price": "1400", "duration_days": 7, "is_active": true } },
+    { "model": "billing.subscriptionplan", "pk": 3, "fields": { "title": "Месяц", "price": "5000", "duration_days": 30, "is_active": true } }
+]
