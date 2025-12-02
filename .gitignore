@@ -1,4 +1,6 @@
-# Node
+#################################
+# Node / React / Frontend
+#################################
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -16,28 +18,73 @@ out/
 coverage/
 .tmp/
 temp/
+.cache/
+.eslintcache
 
-# Env
+# React specific
+*.tsbuildinfo
+
+#################################
+# Python / Django / Backend
+#################################
+
+# Python cache
+*./__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# Virtualenv
+.venv/
+venv/
+env/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Redis dumps
+dump.rdb
+
+#################################
+# Environment variables
+#################################
 .env
 .env.*
 !.env.example
 
-# Logs
-logs/
-*.log
-*.log.*
-npm-cache/
-.yarn-cache/
-
-# OS
+#################################
+# OS files
+#################################
 .DS_Store
 Thumbs.db
 
+#################################
 # IDE / Editor
+#################################
 .idea/
 .vscode/
 *.swp
 *.swo
+*.bak
 
+#################################
+# Docker
+#################################
+docker-data/
+*.pid
+
+#################################
 # Misc
+#################################
 *.local
+*.sqlite3
+*.rdb

@@ -62,7 +62,10 @@
         "filters": "Filters",
         "sortBy": "Sort by",
         "sortByDate": "By date",
-        "sortByPrice": "By price"
+        "sortByPrice": "By price",
+        "available": "Available",
+        "myTrips": "My trips",
+        "noMyTrips": "You don’t have any taken trips yet"
     },
     "trip": {
         "passenger": "Passenger",
@@ -129,7 +132,8 @@
         "selectCar": "Select Car",
         "addCar": "Add Car",
         "submit": "Create",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "intermediateStops": "Intermediate stops"
     },
     "rideOptions": {
         "title": "Ride Conditions",
@@ -161,7 +165,9 @@
         "verifiedDriver": "Verified Driver",
         "verifiedPassenger": "Verified Passenger",
         "becomeDriver": "Become a Driver",
-        "verification": "Verification"
+        "verification": "Verification",
+        "logout": "Log out",
+        "logoutConfirm": "Are you sure you want to log out?"
     },
     "car": {
         "brand": "Brand",

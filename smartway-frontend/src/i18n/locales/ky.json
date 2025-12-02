@@ -62,7 +62,10 @@
         "filters": "Чыпкалар",
         "sortBy": "Иреттөө",
         "sortByDate": "Күнү боюнча",
-        "sortByPrice": "Баасы боюнча"
+        "sortByPrice": "Баасы боюнча",
+        "available": "Жеткиликтүүлөр",
+        "myTrips": "Менин сапарларым",
+        "noMyTrips": "Сизде азырынча алынган сапарлар жок"
     },
     "trip": {
         "passenger": "Жүргүнчү",
@@ -129,7 +132,8 @@
         "selectCar": "Унааны тандаңыз",
         "addCar": "Унаа кошуу",
         "submit": "Түзүү",
-        "cancel": "Жокко чыгаруу"
+        "cancel": "Жокко чыгаруу",
+        "intermediateStops": "Аралык токтоолор"
     },
     "rideOptions": {
         "title": "Сапар шарттары",
@@ -161,7 +165,9 @@
         "verifiedDriver": "Текшерилген айдоочу",
         "verifiedPassenger": "Текшерилген жүргүнчү",
         "becomeDriver": "Айдоочу болуу",
-        "verification": "Верификация"
+        "verification": "Верификация",
+        "logout": "Аккаунттан чыгуу",
+        "logoutConfirm": "Чын эле чыгууга ишенесизби?"
     },
     "car": {
         "brand": "Маркасы",

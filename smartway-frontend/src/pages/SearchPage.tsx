@@ -1,7 +1,7 @@
 // src/pages/SearchPage.tsx
 import { useState, useEffect } from 'react';
 import {
-  Typography, Empty, Spin, Modal, InputNumber, Form, Input, message, Alert
+  Typography, Empty, Spin, Modal, InputNumber, Form, Input, message, Alert, Tabs
 } from 'antd';
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +19,7 @@ import {
 import {
   fetchAvailableTrips,
   takeTrip,
+  fetchMyDriverTrips,
   type Trip,
 } from '../api/trips';
 import { getMyCars, type Car } from '../api/auth';
@@ -35,8 +36,10 @@ export default function SearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [myTrips, setMyTrips] = useState<Trip[]>([]);  // Взятые водителем поездки
   const [cars, setCars] = useState<Car[]>([]);
   const [filters, setFilters] = useState<SearchFilters>({});
+  const [activeTab, setActiveTab] = useState('available');
 
   // Модальные окна
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
@@ -46,14 +49,11 @@ export default function SearchPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    console.log('[SearchPage] isAuth:', isAuth, 'isDriver:', isDriver);
-  
     if (!isAuth) {
       setLoading(false);
       setError('Требуется авторизация');
       return;
     }
-  
     loadData();
   }, [isAuth, isDriver]);
   
@@ -66,8 +66,9 @@ export default function SearchPage() {
       
       if (isDriver) {
         const results = await Promise.allSettled([
-          fetchAvailableTrips(currentFilters),  // ← передаём фильтры
+          fetchAvailableTrips(currentFilters),
           getMyCars(),
+          fetchMyDriverTrips(),  // Загружаем взятые поездки
         ]);
         
         if (results[0].status === 'fulfilled') {
@@ -75,6 +76,9 @@ export default function SearchPage() {
         }
         if (results[1].status === 'fulfilled') {
           setCars(results[1].value || []);
+        }
+        if (results[2].status === 'fulfilled') {
+          setMyTrips(results[2].value || []);
         }
       } else {
         const announcementsData = await fetchAvailableAnnouncements(currentFilters);
@@ -90,7 +94,7 @@ export default function SearchPage() {
 
   const handleSearch = async (newFilters: SearchFilters) => {
     setFilters(newFilters);
-    loadData(newFilters);  // ← передаём новые фильтры
+    loadData(newFilters);
   };
 
   // === Действия для пассажира ===
@@ -133,20 +137,54 @@ export default function SearchPage() {
     }
   };
 
-  // Фильтрация данных на клиенте
-  const filteredAnnouncements = (announcements || []).filter(ann => {
-    if (filters.allow_smoking && !ann.allow_smoking) return false;
-    if (filters.allow_pets && !ann.allow_pets) return false;
-    if (filters.allow_big_luggage && !ann.allow_big_luggage) return false;
-    return true;
-  });
+  // Фильтрация на клиенте — каждое поле работает независимо (OR логика для опций)
+  const filterData = <T extends { 
+    from_location?: number | string;
+    to_location?: number | string;
+    from_location_display?: string;
+    to_location_display?: string;
+    departure_time?: string;
+    allow_smoking?: boolean;
+    allow_pets?: boolean;
+    allow_big_luggage?: boolean;
+  }>(items: T[]): T[] => {
+    return items.filter(item => {
+      // Фильтр по локации "Откуда"
+      if (filters.from_location) {
+        const itemFromId = typeof item.from_location === 'number' 
+          ? item.from_location 
+          : parseInt(item.from_location as string);
+        if (itemFromId !== filters.from_location) return false;
+      }
+      
+      // Фильтр по локации "Куда"
+      if (filters.to_location) {
+        const itemToId = typeof item.to_location === 'number' 
+          ? item.to_location 
+          : parseInt(item.to_location as string);
+        if (itemToId !== filters.to_location) return false;
+      }
+      
+      // Фильтр по дате
+      if (filters.date && item.departure_time) {
+        const itemDate = new Date(item.departure_time).toISOString().split('T')[0];
+        if (itemDate !== filters.date) return false;
+      }
+      
+      // Фильтры по условиям — показываем если опция включена И в фильтре выбрана
+      if (filters.allow_smoking && !item.allow_smoking) return false;
+      if (filters.allow_pets && !item.allow_pets) return false;
+      if (filters.allow_big_luggage && !item.allow_big_luggage) return false;
+      
+      return true;
+    });
+  };
 
-  const filteredTrips = (trips || []).filter(trip => {
-    if (filters.allow_smoking && !trip.allow_smoking) return false;
-    if (filters.allow_pets && !trip.allow_pets) return false;
-    if (filters.allow_big_luggage && !trip.allow_big_luggage) return false;
-    return true;
-  });
+  const filteredAnnouncements = filterData(announcements);
+  const filteredTrips = filterData(trips);
+  
+  // Фильтруем взятые поездки (активные)
+  const activeMyTrips = myTrips.filter(t => ['taken', 'in_progress'].includes(t.status));
 
   if (loading) {
     return (
@@ -159,13 +197,59 @@ export default function SearchPage() {
     );
   }
 
+  // Табы для водителя
+  const driverTabs = [
+    {
+      key: 'available',
+      label: `${t('search.available')} (${filteredTrips.length})`,
+      children: (
+        filteredTrips.length > 0 ? (
+          <div>
+            {filteredTrips.map(trip => (
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                onClick={() => setSelectedTrip(trip)}
+                onAction={() => setSelectedTrip(trip)}
+                actionLabel={t('trip.take')}
+                showPassengerInfo={true}
+                showContactButtons={true}
+              />
+            ))}
+          </div>
+        ) : (
+          <Empty description={t('search.noResults')} />
+        )
+      ),
+    },
+    {
+      key: 'my',
+      label: `${t('search.myTrips')} (${activeMyTrips.length})`,
+      children: (
+        activeMyTrips.length > 0 ? (
+          <div>
+            {activeMyTrips.map(trip => (
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                showPassengerInfo={true}
+                showContactButtons={true}
+              />
+            ))}
+          </div>
+        ) : (
+          <Empty description={t('search.noMyTrips')} />
+        )
+      ),
+    },
+  ];
+
   return (
     <div>
       <Title level={4} style={{ marginBottom: 16 }}>
         {isDriver ? t('search.titleDriver') : t('search.title')}
       </Title>
 
-      {/* Ошибка */}
       {error && (
         <Alert
           message={error}
@@ -177,43 +261,19 @@ export default function SearchPage() {
         />
       )}
 
-      {/* Фильтр поиска */}
       <SearchFilter
         onSearch={handleSearch}
         loading={loading}
         showRideOptions={true}
       />
 
-      {/* Результаты поиска */}
       {isDriver ? (
-        // Водитель видит заказы пассажиров
-        filteredTrips.length > 0 ? (
-          <div>
-            {filteredTrips.map(trip => (
-              <TripCard
-                key={trip.id}
-                trip={trip}
-                onClick={() => setSelectedTrip(trip)}
-                onAction={() => setSelectedTrip(trip)}
-                actionLabel={t('trip.take')}
-                showPassengerInfo={true}
-                showContactButtons={true}  // ← ДОБАВИЛИ
-              />
-            ))}
-          </div>
-        ) : (
-          <Empty
-            description={
-              <span>
-                {t('search.noResults')}
-                <br />
-                <Text type="secondary">{t('search.noResultsHint')}</Text>
-              </span>
-            }
-          />
-        )
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={driverTabs}
+        />
       ) : (
-        // Пассажир видит объявления водителей
         filteredAnnouncements.length > 0 ? (
           <div>
             {filteredAnnouncements.map(ann => (
@@ -239,7 +299,7 @@ export default function SearchPage() {
         )
       )}
 
-      {/* Модалка бронирования (для пассажира) */}
+      {/* Модалка бронирования */}
       <Modal
         title={t('booking.title')}
         open={!!selectedAnnouncement}
@@ -287,7 +347,7 @@ export default function SearchPage() {
         )}
       </Modal>
 
-      {/* Модалка взятия заказа (для водителя) */}
+      {/* Модалка взятия заказа */}
       <Modal
         title={t('trip.take')}
         open={!!selectedTrip}

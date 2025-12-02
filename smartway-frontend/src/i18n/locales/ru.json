@@ -62,7 +62,10 @@
         "filters": "Фильтры",
         "sortBy": "Сортировка",
         "sortByDate": "По дате",
-        "sortByPrice": "По цене"
+        "sortByPrice": "По цене",
+        "available": "Доступные",
+        "myTrips": "Мои поездки",
+        "noMyTrips": "У вас пока нет взятых поездок"
     },
     "trip": {
         "passenger": "Пассажир",
@@ -129,7 +132,8 @@
         "selectCar": "Выберите автомобиль",
         "addCar": "Добавить авто",
         "submit": "Создать",
-        "cancel": "Отмена"
+        "cancel": "Отмена",
+        "intermediateStops": "Промежуточные остановки"
     },
     "rideOptions": {
         "title": "Условия поездки",
@@ -161,7 +165,9 @@
         "verifiedDriver": "Проверенный водитель",
         "verifiedPassenger": "Проверенный пассажир",
         "becomeDriver": "Стать водителем",
-        "verification": "Верификация"
+        "verification": "Верификация",
+        "logout": "Выйти из аккаунта",
+        "logoutConfirm": "Вы уверены, что хотите выйти?"
     },
     "car": {
         "brand": "Марка",

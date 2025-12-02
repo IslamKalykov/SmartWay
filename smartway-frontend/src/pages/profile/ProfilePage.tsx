@@ -6,10 +6,11 @@ import {
 } from 'antd';
 import {
   UserOutlined, EditOutlined, CameraOutlined, CarOutlined,
-  SafetyCertificateOutlined, StarOutlined, PhoneOutlined,
-  SaveOutlined, CloseOutlined, PlusOutlined
+  SafetyCertificateOutlined, StarOutlined,
+  SaveOutlined, CloseOutlined, PlusOutlined, LogoutOutlined
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
 import { useAuth } from '../../auth/AuthContext';
@@ -24,7 +25,9 @@ const { TextArea } = Input;
 
 export default function ProfilePage() {
   const { t } = useTranslation();
-  const { user: authUser, refreshUser } = useAuth();
+  const navigate = useNavigate();
+  const { user: authUser, logout } = useAuth();
+  const isDriver = authUser?.is_driver ?? false;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,21 +47,29 @@ export default function ProfilePage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [profileData, carsData, reviewsData] = await Promise.all([
+      const promises: Promise<any>[] = [
         getMyProfile(),
-        getMyCars().catch(() => []),
         getMyReceivedReviews().catch(() => []),
-      ]);
+      ];
+      
+      // Загружаем авто только для водителей
+      if (isDriver) {
+        promises.push(getMyCars().catch(() => []));
+      }
 
-      setProfile(profileData);
-      setCars(carsData);
-      setReviews(reviewsData);
+      const results = await Promise.all(promises);
+      
+      setProfile(results[0]);
+      setReviews(results[1]);
+      if (isDriver && results[2]) {
+        setCars(results[2]);
+      }
 
       form.setFieldsValue({
-        full_name: profileData.full_name,
-        bio: profileData.bio || '',
-        city: profileData.city || '',
-        birth_date: profileData.birth_date ? dayjs(profileData.birth_date) : null,
+        full_name: results[0].full_name,
+        bio: results[0].bio || '',
+        city: results[0].city || '',
+        birth_date: results[0].birth_date ? dayjs(results[0].birth_date) : null,
       });
     } catch (error) {
       console.error(error);
@@ -80,7 +91,6 @@ export default function ProfilePage() {
 
       const updated = await updateProfile(data);
       setProfile(updated);
-      refreshUser?.();
       message.success(t('common.success'));
       setEditMode(false);
     } catch (error) {
@@ -96,7 +106,6 @@ export default function ProfilePage() {
       await uploadPhoto(file);
       message.success(t('common.success'));
       loadData();
-      refreshUser?.();
     } catch (error) {
       message.error(t('errors.serverError'));
     }
@@ -113,6 +122,19 @@ export default function ProfilePage() {
     }
   };
 
+  const handleLogout = () => {
+    Modal.confirm({
+      title: t('profile.logoutConfirm'),
+      okText: t('common.confirm'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
+      onOk: () => {
+        logout();
+        navigate('/login');
+      },
+    });
+  };
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 50 }}>
@@ -124,6 +146,7 @@ export default function ProfilePage() {
     );
   }
 
+  // Базовые табы
   const tabItems = [
     {
       key: 'info',
@@ -163,28 +186,20 @@ export default function ProfilePage() {
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
                 <div>
                   <Text type="secondary">{t('profile.fullName')}</Text>
-                  <div>
-                    <Text strong>{profile?.full_name || '—'}</Text>
-                  </div>
+                  <div><Text strong>{profile?.full_name || '—'}</Text></div>
                 </div>
                 <div>
                   <Text type="secondary">{t('profile.phone')}</Text>
-                  <div>
-                    <Text>{profile?.phone_number}</Text>
-                  </div>
+                  <div><Text>{profile?.phone_number}</Text></div>
                 </div>
                 <div>
                   <Text type="secondary">{t('profile.city')}</Text>
-                  <div>
-                    <Text>{profile?.city || '—'}</Text>
-                  </div>
+                  <div><Text>{profile?.city || '—'}</Text></div>
                 </div>
                 {profile?.bio && (
                   <div>
                     <Text type="secondary">{t('profile.bio')}</Text>
-                    <div>
-                      <Paragraph>{profile.bio}</Paragraph>
-                    </div>
+                    <div><Paragraph>{profile.bio}</Paragraph></div>
                   </div>
                 )}
               </Space>
@@ -193,82 +208,6 @@ export default function ProfilePage() {
                 {t('profile.editProfile')}
               </Button>
             </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'cars',
-      label: (
-        <span>
-          <CarOutlined /> {t('profile.myCars')} ({cars.length})
-        </span>
-      ),
-      children: (
-        <div>
-          <Button
-            type="dashed"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditingCar(null);
-              setShowCarModal(true);
-            }}
-            style={{ marginBottom: 16 }}
-          >
-            {t('profile.addCar')}
-          </Button>
-
-          {cars.length > 0 ? (
-            <List
-              dataSource={cars}
-              renderItem={(car) => (
-                <Card
-                  style={{ marginBottom: 12, borderRadius: 8 }}
-                  bodyStyle={{ padding: 16 }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <div>
-                      <Text strong>
-                        {car.brand} {car.model}
-                      </Text>
-                      <br />
-                      <Text type="secondary">
-                        {car.year} • {car.color} • {car.plate_number}
-                      </Text>
-                      <br />
-                      <Text type="secondary">
-                        {car.passenger_seats} {t('trip.seats')}
-                      </Text>
-                      {car.is_verified && (
-                        <Tag color="green" style={{ marginLeft: 8 }}>
-                          {t('car.verified')}
-                        </Tag>
-                      )}
-                    </div>
-                    <Space>
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          setEditingCar(car);
-                          setShowCarModal(true);
-                        }}
-                      >
-                        {t('common.edit')}
-                      </Button>
-                      <Button
-                        size="small"
-                        danger
-                        onClick={() => handleDeleteCar(car.id)}
-                      >
-                        {t('common.delete')}
-                      </Button>
-                    </Space>
-                  </div>
-                </Card>
-              )}
-            />
-          ) : (
-            <Empty description={t('common.noData')} />
           )}
         </div>
       ),
@@ -286,10 +225,7 @@ export default function ProfilePage() {
             <List
               dataSource={reviews}
               renderItem={(review) => (
-                <Card
-                  style={{ marginBottom: 12, borderRadius: 8 }}
-                  bodyStyle={{ padding: 16 }}
-                >
+                <Card style={{ marginBottom: 12, borderRadius: 8 }} styles={{ body: { padding: 16 } }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <Avatar icon={<UserOutlined />} src={review.author_photo} />
                     <div style={{ flex: 1 }}>
@@ -318,22 +254,81 @@ export default function ProfilePage() {
     },
   ];
 
+  // Добавляем вкладку авто ТОЛЬКО для водителей
+  if (isDriver) {
+    tabItems.splice(1, 0, {
+      key: 'cars',
+      label: (
+        <span>
+          <CarOutlined /> {t('profile.myCars')} ({cars.length})
+        </span>
+      ),
+      children: (
+        <div>
+          <Button
+            type="dashed"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditingCar(null);
+              setShowCarModal(true);
+            }}
+            style={{ marginBottom: 16 }}
+          >
+            {t('profile.addCar')}
+          </Button>
+
+          {cars.length > 0 ? (
+            <List
+              dataSource={cars}
+              renderItem={(car) => (
+                <Card style={{ marginBottom: 12, borderRadius: 8 }} styles={{ body: { padding: 16 } }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                      <Text strong>{car.brand} {car.model}</Text>
+                      <br />
+                      <Text type="secondary">
+                        {car.year} • {car.color} • {car.plate_number}
+                      </Text>
+                      <br />
+                      <Text type="secondary">{car.passenger_seats} {t('trip.seats')}</Text>
+                      {car.is_verified && (
+                        <Tag color="green" style={{ marginLeft: 8 }}>{t('car.verified')}</Tag>
+                      )}
+                    </div>
+                    <Space>
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setEditingCar(car);
+                          setShowCarModal(true);
+                        }}
+                      >
+                        {t('common.edit')}
+                      </Button>
+                      <Button size="small" danger onClick={() => handleDeleteCar(car.id)}>
+                        {t('common.delete')}
+                      </Button>
+                    </Space>
+                  </div>
+                </Card>
+              )}
+            />
+          ) : (
+            <Empty description={t('common.noData')} />
+          )}
+        </div>
+      ),
+    });
+  }
+
   return (
     <div>
       {/* Header Card */}
       <Card style={{ borderRadius: 12, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Upload
-            showUploadList={false}
-            beforeUpload={handlePhotoUpload}
-            accept="image/*"
-          >
+          <Upload showUploadList={false} beforeUpload={handlePhotoUpload} accept="image/*">
             <div style={{ position: 'relative', cursor: 'pointer' }}>
-              <Avatar
-                size={80}
-                icon={<UserOutlined />}
-                src={profile?.photo}
-              />
+              <Avatar size={80} icon={<UserOutlined />} src={profile?.photo} />
               <div
                 style={{
                   position: 'absolute',
@@ -355,9 +350,7 @@ export default function ProfilePage() {
             </Title>
             <Space size={8} wrap style={{ marginTop: 8 }}>
               {profile?.is_driver && (
-                <Tag color="blue">
-                  <CarOutlined /> {t('trip.driver')}
-                </Tag>
+                <Tag color="blue"><CarOutlined /> {t('trip.driver')}</Tag>
               )}
               {profile?.is_verified_driver && (
                 <Tag color="green" icon={<SafetyCertificateOutlined />}>
@@ -375,7 +368,7 @@ export default function ProfilePage() {
 
         {/* Stats */}
         <Divider />
-        <Space size={24}>
+        <Space size={24} wrap>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 20, fontWeight: 600 }}>
               {profile?.trips_completed_as_driver || 0}
@@ -408,13 +401,29 @@ export default function ProfilePage() {
         <Tabs items={tabItems} />
       </Card>
 
+      {/* Кнопка выхода — внизу, заметная */}
+      <div style={{ marginTop: 24, textAlign: 'center' }}>
+        <Button
+          danger
+          icon={<LogoutOutlined />}
+          onClick={handleLogout}
+          size="large"
+          style={{ 
+            borderRadius: 8,
+            minWidth: 200,
+          }}
+        >
+          {t('profile.logout')}
+        </Button>
+      </div>
+
       {/* Car Modal */}
       <Modal
         open={showCarModal}
         onCancel={() => setShowCarModal(false)}
         footer={null}
         title={editingCar ? t('car.editTitle') : t('car.addTitle')}
-        destroyOnClose
+        destroyOnHidden
       >
         <CarForm
           car={editingCar}

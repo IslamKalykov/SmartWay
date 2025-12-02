@@ -165,6 +165,17 @@ export interface Review {
   created_at: string;
 }
 
+export async function fetchMyDriverTrips(): Promise<Trip[]> {
+  const resp = await api.get('/trips/my-driver/');
+  if (Array.isArray(resp.data)) {
+    return resp.data;
+  }
+  if (resp.data?.results) {
+    return resp.data.results;
+  }
+  return [];
+}
+
 export async function getMyReceivedReviews(): Promise<Review[]> {
   const resp = await api.get('/reviews/my_received/');
   if (Array.isArray(resp.data)) {

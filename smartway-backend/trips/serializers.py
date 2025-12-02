@@ -171,43 +171,36 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
         return DriverAnnouncement.objects.create(driver=user, **validated_data)
 
 
-class AnnouncementListSerializer(serializers.ModelSerializer):
-    """Краткий сериализатор для списка объявлений"""
-    driver_name = serializers.CharField(source="driver.full_name", read_only=True)
-    driver_verified = serializers.BooleanField(source="driver.is_verified_driver", read_only=True)
-    driver_photo = serializers.ImageField(source="driver.photo", read_only=True)
-    free_seats = serializers.IntegerField(read_only=True)
-    from_location_display = serializers.SerializerMethodField()
-    to_location_display = serializers.SerializerMethodField()
-
+class AnnouncementCreateSerializer(serializers.ModelSerializer):
+    """Создание объявления водителем"""
     class Meta:
         model = DriverAnnouncement
         fields = (
-            "id", "from_location", "to_location",
-            "from_location_display", "to_location_display",
-            "departure_time",
-            "available_seats", "booked_seats", "free_seats",
-            "price_per_seat", "is_negotiable", "status",
-            "driver_name", "driver_verified", "driver_photo",
+            "from_location", "to_location", "departure_time",
+            "available_seats", "price_per_seat", "is_negotiable",
+            "contact_phone", "comment", "car",
             "allow_smoking", "allow_pets", "allow_big_luggage",
-            "allow_children", "has_air_conditioning",
-            "created_at"
+            "baggage_help", "allow_children", "has_air_conditioning",
+            "extra_rules", "intermediate_stops",
         )
-    
-    def get_from_location_display(self, obj):
-        lang = self._get_lang()
-        return obj.from_location.get_name(lang)
-    
-    def get_to_location_display(self, obj):
-        lang = self._get_lang()
-        return obj.to_location.get_name(lang)
-    
-    def _get_lang(self):
-        request = self.context.get('request')
-        if request:
-            return request.query_params.get('lang') or \
-                   request.headers.get('Accept-Language', 'ru')[:2]
-        return 'ru'
+
+    def validate_departure_time(self, value):
+        if value <= timezone.now():
+            raise serializers.ValidationError("Дата/время должны быть в будущем.")
+        return value
+
+    def validate_available_seats(self, value):
+        if value <= 0 or value > 50:
+            raise serializers.ValidationError("Количество мест от 1 до 50.")
+        return value
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        # Убираем driver если попал в validated_data
+        validated_data.pop('driver', None)
+        if not validated_data.get('contact_phone'):
+            validated_data['contact_phone'] = user.phone_number
+        return DriverAnnouncement.objects.create(driver=user, **validated_data)
 
 
 class AnnouncementDetailSerializer(serializers.ModelSerializer):

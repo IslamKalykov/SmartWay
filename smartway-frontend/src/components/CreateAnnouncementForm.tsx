@@ -54,11 +54,10 @@ export default function CreateAnnouncementForm({
     try {
       setLoading(true);
       
+      // Отправляем ID локаций!
       const data = {
-        from_location: values.from_location_display || `Location ${values.from_location}`,
-        to_location: values.to_location_display || `Location ${values.to_location}`,
-        from_location_obj: values.from_location,
-        to_location_obj: values.to_location,
+        from_location: values.from_location,  // ID
+        to_location: values.to_location,      // ID
         departure_time: values.departure_time.toISOString(),
         available_seats: values.available_seats || 4,
         price_per_seat: values.price_per_seat,
@@ -72,35 +71,37 @@ export default function CreateAnnouncementForm({
         allow_children: values.allow_children ?? true,
         has_air_conditioning: values.has_air_conditioning ?? true,
         extra_rules: values.extra_rules || '',
-        intermediate_stops: values.intermediate_stops || '',
+        intermediate_stops: values.intermediate_stops ? 
+          values.intermediate_stops.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
       };
+      
+      console.log('Creating announcement with data:', data);
       
       await createAnnouncement(data);
       message.success(t('common.success'));
       form.resetFields();
       onSuccess?.();
     } catch (error: any) {
-      console.error(error);
-      message.error(error?.response?.data?.detail || t('errors.serverError'));
+      console.error('Create announcement error:', error?.response?.data || error);
+      const errorData = error?.response?.data;
+      
+      if (typeof errorData === 'object') {
+        const messages = Object.entries(errorData)
+          .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+          .join('\n');
+        message.error(messages || t('errors.serverError'));
+      } else {
+        message.error(errorData?.detail || t('errors.serverError'));
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFromLocationChange = (id: number, location?: any) => {
+  const handleFromLocationChange = (id: number) => {
     setFromLocationId(id);
-    if (location) {
-      form.setFieldValue('from_location_display', location.name);
-    }
   };
 
-  const handleToLocationChange = (id: number, location?: any) => {
-    if (location) {
-      form.setFieldValue('to_location_display', location.name);
-    }
-  };
-
-  // Запрет выбора прошедших дат
   const disabledDate = (current: dayjs.Dayjs) => {
     return current && current < dayjs().startOf('day');
   };
@@ -126,14 +127,6 @@ export default function CreateAnnouncementForm({
           has_air_conditioning: true,
         }}
       >
-        {/* Скрытые поля для названий локаций */}
-        <Form.Item name="from_location_display" hidden>
-          <Input />
-        </Form.Item>
-        <Form.Item name="to_location_display" hidden>
-          <Input />
-        </Form.Item>
-
         {/* Откуда */}
         <Form.Item
           name="from_location"
@@ -156,7 +149,6 @@ export default function CreateAnnouncementForm({
           <LocationSelect
             placeholder={t('search.toPlaceholder')}
             excludeId={fromLocationId}
-            onChange={handleToLocationChange}
             size="large"
           />
         </Form.Item>
@@ -178,20 +170,14 @@ export default function CreateAnnouncementForm({
         </Form.Item>
 
         {/* Автомобиль */}
-        <Form.Item
-          name="car"
-          label={t('create.carLabel')}
-        >
+        <Form.Item name="car" label={t('create.carLabel')}>
           <Select
             placeholder={t('create.selectCar')}
             size="large"
             loading={loadingCars}
             allowClear
             notFoundContent={
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={t('common.noData')}
-              >
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('common.noData')}>
                 <Button type="link" icon={<PlusOutlined />} onClick={onAddCar}>
                   {t('create.addCar')}
                 </Button>
@@ -214,12 +200,7 @@ export default function CreateAnnouncementForm({
             rules={[{ required: true }]}
             style={{ flex: 1 }}
           >
-            <InputNumber
-              min={1}
-              max={50}
-              style={{ width: '100%' }}
-              size="large"
-            />
+            <InputNumber min={1} max={50} style={{ width: '100%' }} size="large" />
           </Form.Item>
 
           <Form.Item
@@ -228,38 +209,21 @@ export default function CreateAnnouncementForm({
             rules={[{ required: true, message: t('create.pricePerSeatLabel') }]}
             style={{ flex: 1 }}
           >
-            <InputNumber
-              min={0}
-              max={100000}
-              style={{ width: '100%' }}
-              size="large"
-              addonAfter="сом"
-            />
+            <InputNumber min={0} max={100000} style={{ width: '100%' }} size="large" />
           </Form.Item>
         </Space>
 
-        <Form.Item
-          name="is_negotiable"
-          valuePropName="checked"
-        >
+        <Form.Item name="is_negotiable" valuePropName="checked">
           <Switch /> <span style={{ marginLeft: 8 }}>{t('create.negotiableLabel')}</span>
         </Form.Item>
 
         {/* Промежуточные остановки */}
-        <Form.Item
-          name="intermediate_stops"
-          label="Промежуточные остановки"
-        >
-          <Input
-            placeholder="Например: Токмок, Балыкчы"
-          />
+        <Form.Item name="intermediate_stops" label={t('create.intermediateStops')}>
+          <Input placeholder="Токмок, Балыкчы" />
         </Form.Item>
 
         {/* Комментарий */}
-        <Form.Item
-          name="comment"
-          label={t('create.commentLabel')}
-        >
+        <Form.Item name="comment" label={t('create.commentLabel')}>
           <TextArea
             rows={3}
             placeholder={t('create.commentPlaceholder')}
@@ -274,11 +238,7 @@ export default function CreateAnnouncementForm({
         {/* Кнопки */}
         <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-            {onCancel && (
-              <Button onClick={onCancel}>
-                {t('create.cancel')}
-              </Button>
-            )}
+            {onCancel && <Button onClick={onCancel}>{t('create.cancel')}</Button>}
             <Button type="primary" htmlType="submit" loading={loading} size="large">
               {t('create.submit')}
             </Button>
