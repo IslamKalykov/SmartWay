@@ -35,9 +35,9 @@ import {
 const { Title, Text } = Typography;
 
 export default function MyAdsPage() {
-  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const isDriver = user?.is_driver;
 
   const [loading, setLoading] = useState(true);
@@ -49,7 +49,7 @@ export default function MyAdsPage() {
 
   useEffect(() => {
     loadData();
-  }, [isDriver]);
+  }, [isDriver, i18n.language]);
 
   const loadData = async () => {
     try {

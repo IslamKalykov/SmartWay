@@ -256,7 +256,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     def my(self, request):
         """GET /api/announcements/my/ - мои объявления"""
         qs = DriverAnnouncement.objects.filter(driver=request.user).order_by('-created_at')
-        serializer = AnnouncementListSerializer(qs, many=True)
+        serializer = AnnouncementListSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
@@ -288,7 +288,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
         
-        serializer = AnnouncementListSerializer(qs, many=True)
+        serializer = AnnouncementListSerializer(qs, many=True, context={'request': request})
+
         return Response(serializer.data)
     
     @action(detail=True, methods=['get'])

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   List,
   Card,
@@ -42,6 +43,7 @@ type MyTrip = {
 };
 
 export default function MyTripsPage() {
+  const { i18n } = useTranslation();
   const [trips, setTrips] = useState<MyTrip[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
@@ -51,7 +53,7 @@ export default function MyTripsPage() {
 
   useEffect(() => {
     loadMyTrips();
-  }, []);
+  }, [i18n.language]);
 
   async function loadMyTrips() {
     try {

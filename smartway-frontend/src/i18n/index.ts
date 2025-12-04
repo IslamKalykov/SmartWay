@@ -6,20 +6,25 @@ import ru from './locales/ru.json';
 import en from './locales/en.json';
 import ky from './locales/ky.json';
 
-// Получаем сохранённый язык или язык браузера
+// <-- добавляем dayjs и локали
+import dayjs from 'dayjs';
+import 'dayjs/locale/ru';
+import 'dayjs/locale/en';
+import 'dayjs/locale/ky';
+// ------------------------------
+
 const getInitialLanguage = (): string => {
   const saved = localStorage.getItem('language');
   if (saved && ['ru', 'en', 'ky'].includes(saved)) {
     return saved;
   }
-  
-  // Пробуем определить по браузеру
+
   const browserLang = navigator.language.split('-')[0];
   if (['ru', 'en', 'ky'].includes(browserLang)) {
     return browserLang;
   }
-  
-  return 'ru'; // По умолчанию русский
+
+  return 'ru';
 };
 
 i18n
@@ -37,11 +42,18 @@ i18n
     },
   });
 
+// Устанавливаем dayjs локаль сразу при старте
+dayjs.locale(i18n.language || getInitialLanguage());
+
 // Сохраняем язык при изменении
 i18n.on('languageChanged', (lng) => {
   localStorage.setItem('language', lng);
   // Обновляем html lang атрибут
   document.documentElement.lang = lng;
-});
 
+  // <-- синхронизируем dayjs локаль
+  // используем первые 2 символа, ожидая 'ru'|'en'|'ky'
+  const langCode = (lng || 'ru').slice(0, 2);
+  dayjs.locale(langCode);
+});
 export default i18n;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -28,6 +29,7 @@ const { Title, Text, Paragraph } = Typography;
 type TripStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
 
 export default function TripDetailPage() {
+  const { i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isMobile = useIsMobile(768);
@@ -37,7 +39,7 @@ export default function TripDetailPage() {
 
   useEffect(() => {
     loadTrip();
-  }, [id]);
+  }, [id, i18n.language]);
 
   async function loadTrip() {
     try {

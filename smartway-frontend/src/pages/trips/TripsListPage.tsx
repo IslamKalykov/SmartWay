@@ -1,5 +1,6 @@
 // src/pages/trips/TripsListPage.tsx
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   List,
   Card,
@@ -30,6 +31,7 @@ const { Text, Title } = Typography;
 type TripStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
 
 export default function TripsListPage() {
+  const { i18n } = useTranslation();
   const [availableTrips, setAvailableTrips] = useState<Trip[]>([]);
   const [myActiveTrips, setMyActiveTrips] = useState<Trip[]>([]);
   const [completedTrips, setCompletedTrips] = useState<Trip[]>([]);
@@ -43,7 +45,7 @@ export default function TripsListPage() {
 
   useEffect(() => {
     void loadTrips();
-  }, []);
+  }, [i18n.language]);
 
   async function loadTrips() {
     try {

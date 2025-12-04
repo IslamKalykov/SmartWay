@@ -416,3 +416,60 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Не найден получатель отзыва")
         
         return Review.objects.create(author=user, recipient=recipient, **validated_data)
+    
+class AnnouncementListSerializer(serializers.ModelSerializer):
+    """Список объявлений водителей"""
+    from_location_display = serializers.SerializerMethodField()
+    to_location_display = serializers.SerializerMethodField()
+    driver_name = serializers.CharField(source="driver.full_name", read_only=True)
+    driver_phone = serializers.CharField(source="driver.phone_number", read_only=True)
+    driver_photo = serializers.ImageField(source="driver.photo", read_only=True)
+    driver_verified = serializers.BooleanField(source="driver.is_verified_driver", read_only=True)
+    driver_rating = serializers.FloatField(source="driver.average_rating", read_only=True)
+    car_info = serializers.SerializerMethodField()
+    free_seats = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DriverAnnouncement
+        fields = (
+            "id", "from_location", "to_location",
+            "from_location_display", "to_location_display",
+            "departure_time", "available_seats", "booked_seats", "free_seats",
+            "price_per_seat", "is_negotiable", "status",
+            "driver", "driver_name", "driver_phone", "driver_photo",
+            "driver_verified", "driver_rating",
+            "car", "car_info",
+            "allow_smoking", "allow_pets", "allow_big_luggage",
+            "baggage_help", "allow_children", "has_air_conditioning",
+            "comment", "created_at",
+        )
+
+    def _get_lang(self):
+        request = self.context.get('request')
+        if request:
+            return request.query_params.get('lang', 'ru')
+        return 'ru'
+
+    def get_from_location_display(self, obj):
+        lang = self._get_lang()
+        return obj.from_location.get_name(lang)
+
+    def get_to_location_display(self, obj):
+        lang = self._get_lang()
+        return obj.to_location.get_name(lang)
+
+    def get_car_info(self, obj):
+        if obj.car:
+            return {
+                "id": obj.car.id,
+                "brand": obj.car.brand,
+                "model": obj.car.model,
+                "color": obj.car.color,
+                "plate_number": obj.car.plate_number,
+                "year": obj.car.year,
+                "passenger_seats": obj.car.passenger_seats,
+            }
+        return None
+
+    def get_free_seats(self, obj):
+        return obj.available_seats - obj.booked_seats

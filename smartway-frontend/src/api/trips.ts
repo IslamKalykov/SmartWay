@@ -1,6 +1,7 @@
 // src/api/trips.ts
 import api from './client';
 import type { SearchFilters } from '../components/SearchFilter';
+import { useTranslation } from 'react-i18next';
 
 export interface Trip {
   id: number;
@@ -64,10 +65,11 @@ export interface TripCreateData {
 
 export async function fetchAvailableTrips(filters?: SearchFilters): Promise<Trip[]> {
   const params: Record<string, any> = {};
-  
+  const { i18n } = useTranslation();
   if (filters?.from_location) params.from_location = filters.from_location;
   if (filters?.to_location) params.to_location = filters.to_location;
   if (filters?.date) params.date = filters.date;
+  params.lang = i18n.language?.slice(0,2); // если импортировать i18n
   
   const response = await api.get('/trips/available/', { params });
   

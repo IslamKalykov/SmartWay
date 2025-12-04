@@ -1,5 +1,7 @@
 // src/components/TripCard.tsx
+
 import { Card, Tag, Space, Typography, Avatar, Button, Tooltip } from 'antd';
+
 import {
   EnvironmentOutlined,
   ClockCircleOutlined,
@@ -36,8 +38,8 @@ export default function TripCard({
   showPassengerInfo = false,
   showContactButtons = false,
 }: TripCardProps) {
-  const { t } = useTranslation();
 
+  const { t, i18n } = useTranslation();
   const statusConfig: Record<string, { color: string; text: string }> = {
     open: { color: 'green', text: t('tripStatus.open') },
     taken: { color: 'blue', text: t('tripStatus.taken') },
@@ -48,7 +50,8 @@ export default function TripCard({
   };
 
   const status = statusConfig[trip.status] || { color: 'default', text: trip.status };
-
+  
+  const lang = (i18n.language || navigator.language || 'ru').slice(0,2);
   const departureDate = dayjs(trip.departure_time);
   const isToday = departureDate.isSame(dayjs(), 'day');
   const isTomorrow = departureDate.isSame(dayjs().add(1, 'day'), 'day');
@@ -57,7 +60,7 @@ export default function TripCard({
     ? t('common.today')
     : isTomorrow
     ? t('common.tomorrow')
-    : departureDate.format('DD MMM');
+    : departureDate.locale(lang).format('DD MMM');
 
   const fromLocation = trip.from_location_display || trip.from_location;
   const toLocation = trip.to_location_display || trip.to_location;
