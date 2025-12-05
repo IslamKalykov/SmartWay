@@ -4,6 +4,40 @@ from django.utils import timezone
 from .models import Trip, DriverAnnouncement, Booking, Review
 from users.models import Car
 
+# trips/serializers.py (в начало файла, после импортов)
+def _resolve_lang_from_request(request):
+    """
+    Надёжно получить 2-символьный код языка из request:
+    1) ?lang=xy
+    2) request.LANGUAGE_CODE (Django LocaleMiddleware)
+    3) Accept-Language header (парсим первый предпочтительный язык)
+    Иначе возвращаем 'ru' по-умолчанию.
+    """
+    if not request:
+        return 'ru'
+
+    # 1) query param
+    lang = request.query_params.get('lang')
+    if lang:
+        return lang[:2]
+
+    # 2) Django LocaleMiddleware
+    language_code = getattr(request, 'LANGUAGE_CODE', None)
+    if language_code:
+        return language_code[:2]
+
+    # 3) Accept-Language
+    al = request.headers.get('Accept-Language') or request.META.get('HTTP_ACCEPT_LANGUAGE', '') or ''
+    if al:
+        # берем первую часть, убираем q/регион и т.п.
+        first = al.split(',')[0].strip()
+        first = first.split(';')[0].strip()
+        first = first.split('-')[0].strip()
+        if first:
+            return first[:2]
+
+    return 'ru'
+
 
 # ===================== TRIP SERIALIZERS (Заказы пассажиров) =====================
 
@@ -72,11 +106,8 @@ class TripListSerializer(serializers.ModelSerializer):
         return obj.to_location.get_name(lang)
     
     def _get_lang(self):
-        request = self.context.get('request')
-        if request:
-            return request.query_params.get('lang') or \
-                   request.headers.get('Accept-Language', 'ru')[:2]
-        return 'ru'
+        return _resolve_lang_from_request(self.context.get('request'))
+
 
 
 class TripDetailSerializer(serializers.ModelSerializer):
@@ -132,11 +163,8 @@ class TripDetailSerializer(serializers.ModelSerializer):
         return obj.to_location.get_name(lang)
     
     def _get_lang(self):
-        request = self.context.get('request')
-        if request:
-            return request.query_params.get('lang') or \
-                   request.headers.get('Accept-Language', 'ru')[:2]
-        return 'ru'
+        return _resolve_lang_from_request(self.context.get('request'))
+
 
 
 # ===================== ANNOUNCEMENT SERIALIZERS (Объявления водителей) =====================
@@ -274,11 +302,7 @@ class AnnouncementDetailSerializer(serializers.ModelSerializer):
         return obj.to_location.get_name(lang)
     
     def _get_lang(self):
-        request = self.context.get('request')
-        if request:
-            return request.query_params.get('lang') or \
-                   request.headers.get('Accept-Language', 'ru')[:2]
-        return 'ru'
+        return _resolve_lang_from_request(self.context.get('request'))
 
 
 # ===================== BOOKING SERIALIZERS =====================
@@ -345,11 +369,7 @@ class BookingSerializer(serializers.ModelSerializer):
         }
     
     def _get_lang(self):
-        request = self.context.get('request')
-        if request:
-            return request.query_params.get('lang') or \
-                   request.headers.get('Accept-Language', 'ru')[:2]
-        return 'ru'
+        return _resolve_lang_from_request(self.context.get('request'))
 
 
 # ===================== REVIEW SERIALIZERS =====================
@@ -445,10 +465,7 @@ class AnnouncementListSerializer(serializers.ModelSerializer):
         )
 
     def _get_lang(self):
-        request = self.context.get('request')
-        if request:
-            return request.query_params.get('lang', 'ru')
-        return 'ru'
+        return _resolve_lang_from_request(self.context.get('request'))
 
     def get_from_location_display(self, obj):
         lang = self._get_lang()

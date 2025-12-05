@@ -28,7 +28,7 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 export default function SearchPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, isAuth } = useAuth();
   const isDriver = user?.is_driver ?? false;
 
@@ -55,7 +55,7 @@ export default function SearchPage() {
       return;
     }
     loadData();
-  }, [isAuth, isDriver]);
+  }, [isAuth, isDriver, i18n.language]);
   
   const loadData = async (searchFilters?: SearchFilters) => {
     setError(null);
@@ -64,26 +64,51 @@ export default function SearchPage() {
     try {
       setLoading(true);
       
-      if (isDriver) {
-        const results = await Promise.allSettled([
-          fetchAvailableTrips(currentFilters),
-          getMyCars(),
-          fetchMyDriverTrips(),  // Загружаем взятые поездки
-        ]);
-        
-        if (results[0].status === 'fulfilled') {
-          setTrips(results[0].value || []);
-        }
-        if (results[1].status === 'fulfilled') {
-          setCars(results[1].value || []);
-        }
-        if (results[2].status === 'fulfilled') {
-          setMyTrips(results[2].value || []);
-        }
-      } else {
-        const announcementsData = await fetchAvailableAnnouncements(currentFilters);
-        setAnnouncements(announcementsData || []);
-      }
+      // ---- when not driver (announcements)
+if (!isDriver) {
+  const announcementsData = await fetchAvailableAnnouncements(currentFilters);
+  setAnnouncements(announcementsData || []);
+
+  // Обновляем выбранную запись (если открыта модалка), чтобы показать локализованные поля
+  setSelectedAnnouncement(prev => {
+    if (!prev) return null;
+    return (announcementsData || []).find(a => a.id === prev.id) || null;
+  });
+}
+
+  // ---- when driver (trips)
+  if (isDriver) {
+    const results = await Promise.allSettled([
+      fetchAvailableTrips(currentFilters),
+      getMyCars(),
+      fetchMyDriverTrips(),
+    ]);
+
+    if (results[0].status === 'fulfilled') {
+      const newTrips = results[0].value || [];
+      setTrips(newTrips);
+
+      // Обновляем selectedTrip, если он открыт в модалке
+      setSelectedTrip(prev => {
+        if (!prev) return null;
+        return newTrips.find(t => t.id === prev.id) || null;
+      });
+    }
+
+    if (results[1].status === 'fulfilled') {
+      setCars(results[1].value || []);
+    }
+    if (results[2].status === 'fulfilled') {
+      const newMyTrips = results[2].value || [];
+      setMyTrips(newMyTrips);
+
+      // Обновляем selectedTrip для вкладки "my", если нужно
+      setSelectedTrip(prev => {
+        if (!prev) return null;
+        return newMyTrips.find(t => t.id === prev.id) || prev;
+      });
+    }
+  }
     } catch (err: any) {
       console.error('Load data error:', err);
       setError(err?.message || 'Ошибка загрузки данных');
