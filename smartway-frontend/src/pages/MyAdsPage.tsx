@@ -1,14 +1,16 @@
 // src/pages/MyAdsPage.tsx
 import { useState, useEffect } from 'react';
 import {
-  Card, Typography, Button, Tabs, Empty, Spin, Modal, message, Badge, Space
+  Card, Typography, Button, Tabs, Empty, Spin, Modal, message, Badge, Space, Avatar, Tag, Tooltip
 } from 'antd';
 import {
   PlusOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  ExclamationCircleOutlined
+  UserOutlined, PhoneOutlined, MessageOutlined,
+  ClockCircleOutlined, CarOutlined, CheckOutlined, StopOutlined
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 
 import { useAuth } from '../auth/AuthContext';
 import TripCard from '../components/TripCard';
@@ -33,6 +35,351 @@ import {
 } from '../api/trips';
 
 const { Title, Text } = Typography;
+
+// Стили для улучшенного дизайна
+const styles = {
+  pageContainer: {
+    padding: '0 0 24px 0',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    padding: '16px 20px',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    borderRadius: 16,
+    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+  },
+  headerTitle: {
+    margin: 0,
+    color: '#fff',
+    fontWeight: 600,
+  },
+  createButton: {
+    background: '#fff',
+    color: '#667eea',
+    border: 'none',
+    fontWeight: 600,
+    height: 40,
+    borderRadius: 10,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  },
+  tabsCard: {
+    borderRadius: 16,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+    border: 'none',
+  },
+  bookingCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+    border: '1px solid #f0f0f0',
+    overflow: 'hidden',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+  },
+  bookingCardHover: {
+    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+    transform: 'translateY(-2px)',
+  },
+  bookingHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  bookingAvatar: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    flexShrink: 0,
+  },
+  bookingInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  bookingName: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: '#1a1a2e',
+    marginBottom: 2,
+  },
+  bookingMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap' as const,
+  },
+  seatsTag: {
+    background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    fontWeight: 500,
+  },
+  timeTag: {
+    background: '#f5f5f5',
+    color: '#666',
+    border: 'none',
+    borderRadius: 6,
+  },
+  bookingMessage: {
+    background: '#f8f9fa',
+    borderRadius: 10,
+    padding: '10px 14px',
+    marginBottom: 14,
+    borderLeft: '3px solid #667eea',
+  },
+  bookingMessageText: {
+    color: '#555',
+    fontSize: 14,
+    fontStyle: 'italic' as const,
+    margin: 0,
+  },
+  actionButtons: {
+    display: 'flex',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  confirmButton: {
+    background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    border: 'none',
+    color: '#fff',
+    fontWeight: 600,
+    borderRadius: 8,
+    height: 36,
+    paddingLeft: 16,
+    paddingRight: 16,
+    boxShadow: '0 2px 8px rgba(17, 153, 142, 0.3)',
+  },
+  rejectButton: {
+    background: '#fff',
+    border: '1px solid #ff4d4f',
+    color: '#ff4d4f',
+    fontWeight: 500,
+    borderRadius: 8,
+    height: 36,
+    paddingLeft: 16,
+    paddingRight: 16,
+  },
+  completeButton: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    border: 'none',
+    color: '#fff',
+    fontWeight: 500,
+    borderRadius: 8,
+    height: 34,
+    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+  },
+  cancelButton: {
+    background: '#fff',
+    border: '1px solid #d9d9d9',
+    color: '#666',
+    fontWeight: 500,
+    borderRadius: 8,
+    height: 34,
+  },
+  announcementWrapper: {
+    marginBottom: 16,
+    position: 'relative' as const,
+  },
+  announcementActions: {
+    display: 'flex',
+    gap: 10,
+    justifyContent: 'flex-end',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTop: '1px solid #f0f0f0',
+  },
+  statusBadge: {
+    position: 'absolute' as const,
+    top: 12,
+    right: 12,
+    zIndex: 1,
+  },
+  emptyState: {
+    padding: '40px 20px',
+  },
+  tripInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    color: '#888',
+    fontSize: 13,
+  },
+};
+
+// Компонент карточки бронирования
+interface BookingCardProps {
+  booking: Booking;
+  onConfirm: (id: number) => void;
+  onReject: (id: number) => void;
+  t: (key: string) => string;
+}
+
+function BookingCardItem({ booking, onConfirm, onReject, t }: BookingCardProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Получаем информацию о поездке из бронирования
+  const tripInfo = booking.announcement_info;
+
+  return (
+    <Card
+      style={{
+        ...styles.bookingCard,
+        ...(isHovered ? styles.bookingCardHover : {}),
+      }}
+      styles={{ body: { padding: 16 } }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Информация о поездке */}
+      {tripInfo && (
+        <div style={{ 
+          marginBottom: 12, 
+          padding: '8px 12px', 
+          background: '#f8f9fa', 
+          borderRadius: 8,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }}>
+          <CarOutlined style={{ color: '#667eea' }} />
+          <Text style={{ fontWeight: 500 }}>
+            {tripInfo.from_location} → {tripInfo.to_location}
+          </Text>
+          {tripInfo.departure_time && (
+            <Text type="secondary" style={{ marginLeft: 'auto', fontSize: 12 }}>
+              {dayjs(tripInfo.departure_time).format('DD.MM HH:mm')}
+            </Text>
+          )}
+        </div>
+      )}
+
+      {/* Шапка с пассажиром */}
+      <div style={styles.bookingHeader}>
+        <Avatar 
+          size={48} 
+          icon={<UserOutlined />} 
+          src={booking.passenger_photo}
+          style={styles.bookingAvatar}
+        />
+        <div style={styles.bookingInfo}>
+          <div style={styles.bookingName}>
+            {booking.passenger_name || t('booking.passenger')}
+          </div>
+          <div style={styles.bookingMeta}>
+            <Tag style={styles.seatsTag}>
+              {booking.seats_count} {booking.seats_count === 1 ? t('trip.seat') : t('trip.seats')}
+            </Tag>
+            {booking.created_at && (
+              <Tag icon={<ClockCircleOutlined />} style={styles.timeTag}>
+                {dayjs(booking.created_at).format('DD.MM HH:mm')}
+              </Tag>
+            )}
+          </div>
+        </div>
+        
+        {/* Контакты */}
+        <Space size={4}>
+          {booking.passenger_phone && (
+            <Tooltip title={t('contact.call')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<PhoneOutlined />}
+                onClick={() => window.location.href = `tel:${booking.passenger_phone}`}
+                style={{ color: '#667eea' }}
+              />
+            </Tooltip>
+          )}
+          {booking.passenger_telegram && (
+            <Tooltip title={t('contact.telegram')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<MessageOutlined />}
+                onClick={() => window.open(`https://t.me/${booking.passenger_telegram}`, '_blank')}
+                style={{ color: '#667eea' }}
+              />
+            </Tooltip>
+          )}
+        </Space>
+      </div>
+
+      {/* Сообщение от пассажира */}
+      {booking.message && (
+        <div style={styles.bookingMessage}>
+          <Text style={styles.bookingMessageText}>
+            "{booking.message}"
+          </Text>
+        </div>
+      )}
+
+      {/* Кнопки действий */}
+      <div style={styles.actionButtons}>
+        <Button
+          icon={<CloseCircleOutlined />}
+          onClick={() => onReject(booking.id)}
+          style={styles.rejectButton}
+        >
+          {t('booking.reject')}
+        </Button>
+        <Button
+          icon={<CheckCircleOutlined />}
+          onClick={() => onConfirm(booking.id)}
+          style={styles.confirmButton}
+        >
+          {t('booking.accept')}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// Компонент обёртки для объявления с кнопками
+interface AnnouncementWrapperProps {
+  announcement: Announcement;
+  onComplete: (id: number) => void;
+  onCancel: (id: number) => void;
+  t: (key: string) => string;
+}
+
+function AnnouncementWrapper({ announcement, onComplete, onCancel, t }: AnnouncementWrapperProps) {
+  return (
+    <div style={styles.announcementWrapper}>
+      {/* Бейдж статуса */}
+      {announcement.status === 'full' && (
+        <div style={styles.statusBadge}>
+          <Tag color="orange">{t('announcementStatus.full')}</Tag>
+        </div>
+      )}
+      
+      <AnnouncementCard
+        announcement={announcement}
+        showDriverInfo={false}
+      />
+      
+      {/* Кнопки действий */}
+      {['active', 'full'].includes(announcement.status) && (
+        <div style={styles.announcementActions}>
+          <Button
+            icon={<StopOutlined />}
+            onClick={() => onCancel(announcement.id)}
+            style={styles.cancelButton}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            icon={<CheckOutlined />}
+            onClick={() => onComplete(announcement.id)}
+            style={styles.completeButton}
+          >
+            {t('trip.finish')}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MyAdsPage() {
   const { user } = useAuth();
@@ -75,40 +422,63 @@ export default function MyAdsPage() {
 
   // === Действия для пассажира ===
   const handleCancelTrip = async (tripId: number) => {
-    try {
-      await cancelTrip(tripId);
-      message.success(t('common.success'));
-      loadData();
-    } catch (error: any) {
-      message.error(error?.response?.data?.detail || t('errors.serverError'));
-    }
+    Modal.confirm({
+      title: t('trip.cancelConfirm'),
+      okText: t('common.confirm'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await cancelTrip(tripId);
+          message.success(t('common.success'));
+          loadData();
+        } catch (error: any) {
+          message.error(error?.response?.data?.detail || t('errors.serverError'));
+        }
+      },
+    });
   };
 
   // === Действия для водителя ===
   const handleCancelAnnouncement = async (announcementId: number) => {
-    try {
-      await cancelAnnouncement(announcementId);
-      message.success(t('common.success'));
-      loadData();
-    } catch (error: any) {
-      message.error(error?.response?.data?.detail || t('errors.serverError'));
-    }
+    Modal.confirm({
+      title: t('announcement.cancelConfirm'),
+      okText: t('common.confirm'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await cancelAnnouncement(announcementId);
+          message.success(t('common.success'));
+          loadData();
+        } catch (error: any) {
+          message.error(error?.response?.data?.detail || t('errors.serverError'));
+        }
+      },
+    });
   };
 
   const handleCompleteAnnouncement = async (announcementId: number) => {
-    try {
-      await completeAnnouncement(announcementId);
-      message.success(t('common.success'));
-      loadData();
-    } catch (error: any) {
-      message.error(error?.response?.data?.detail || t('errors.serverError'));
-    }
+    Modal.confirm({
+      title: t('announcement.completeConfirm'),
+      okText: t('common.confirm'),
+      cancelText: t('common.cancel'),
+      onOk: async () => {
+        try {
+          await completeAnnouncement(announcementId);
+          message.success(t('common.success'));
+          loadData();
+        } catch (error: any) {
+          message.error(error?.response?.data?.detail || t('errors.serverError'));
+        }
+      },
+    });
   };
 
   const handleConfirmBooking = async (bookingId: number) => {
     try {
       await confirmBooking(bookingId);
-      message.success(t('common.success'));
+      message.success(t('booking.confirmed'));
       loadData();
     } catch (error: any) {
       message.error(error?.response?.data?.detail || t('errors.serverError'));
@@ -116,13 +486,21 @@ export default function MyAdsPage() {
   };
 
   const handleRejectBooking = async (bookingId: number) => {
-    try {
-      await rejectBooking(bookingId);
-      message.success(t('common.success'));
-      loadData();
-    } catch (error: any) {
-      message.error(error?.response?.data?.detail || t('errors.serverError'));
-    }
+    Modal.confirm({
+      title: t('booking.rejectConfirm'),
+      okText: t('common.confirm'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await rejectBooking(bookingId);
+          message.success(t('common.success'));
+          loadData();
+        } catch (error: any) {
+          message.error(error?.response?.data?.detail || t('errors.serverError'));
+        }
+      },
+    });
   };
 
   // Фильтрация по статусу
@@ -158,22 +536,28 @@ export default function MyAdsPage() {
         {
           key: 'active',
           label: (
-            <span>
-              {t('announcementStatus.active')} ({activeAnnouncements.length})
+            <span style={{ fontWeight: activeTab === 'active' ? 600 : 400 }}>
+              📋 {t('announcementStatus.active')} ({activeAnnouncements.length})
             </span>
           ),
           children: (
-            <div>
+            <div style={{ padding: '8px 0' }}>
               {activeAnnouncements.length > 0 ? (
                 activeAnnouncements.map(ann => (
-                  <AnnouncementCard
+                  <AnnouncementWrapper
                     key={ann.id}
                     announcement={ann}
-                    showDriverInfo={false}
+                    onComplete={handleCompleteAnnouncement}
+                    onCancel={handleCancelAnnouncement}
+                    t={t}
                   />
                 ))
               ) : (
-                <Empty description={t('common.noData')} />
+                <Empty 
+                  description={t('common.noData')} 
+                  style={styles.emptyState}
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
               )}
             </div>
           ),
@@ -181,87 +565,58 @@ export default function MyAdsPage() {
         {
           key: 'bookings',
           label: (
-            <Badge count={pendingBookings.length} size="small">
-              <span style={{ paddingRight: pendingBookings.length > 0 ? 12 : 0 }}>
-                {t('booking.title')}
+            <Badge count={pendingBookings.length} size="small" offset={[8, 0]}>
+              <span style={{ fontWeight: activeTab === 'bookings' ? 600 : 400 }}>
+                📩 {t('booking.requests')}
               </span>
             </Badge>
           ),
           children: (
-            <div>
-              {bookings.length > 0 ? (
-                bookings.map(booking => (
-                  <Card
+            <div style={{ padding: '8px 0' }}>
+              {pendingBookings.length > 0 ? (
+                pendingBookings.map(booking => (
+                  <BookingCardItem
                     key={booking.id}
-                    style={{ marginBottom: 12, borderRadius: 12 }}
-                    bodyStyle={{ padding: 16 }}
-                  >
-                    <div style={{ marginBottom: 12 }}>
-                      <Text strong>{booking.passenger_name}</Text>
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
-                        {booking.seats_count} {t('trip.seats')}
-                      </Text>
-                    </div>
-
-                    {booking.message && (
-                      <div style={{ marginBottom: 12 }}>
-                        <Text type="secondary">{booking.message}</Text>
-                      </div>
-                    )}
-
-                    {booking.status === 'pending' && (
-                      <Space>
-                        <Button
-                          type="primary"
-                          size="small"
-                          icon={<CheckCircleOutlined />}
-                          onClick={() => handleConfirmBooking(booking.id)}
-                        >
-                          {t('common.confirm')}
-                        </Button>
-                        <Button
-                          danger
-                          size="small"
-                          icon={<CloseCircleOutlined />}
-                          onClick={() => handleRejectBooking(booking.id)}
-                        >
-                          {t('common.cancel')}
-                        </Button>
-                      </Space>
-                    )}
-
-                    {booking.status !== 'pending' && (
-                      <Text
-                        type={booking.status === 'confirmed' ? 'success' : 'danger'}
-                      >
-                        {booking.status === 'confirmed'
-                          ? t('booking.confirmed')
-                          : t('booking.rejected')}
-                      </Text>
-                    )}
-                  </Card>
+                    booking={booking}
+                    onConfirm={handleConfirmBooking}
+                    onReject={handleRejectBooking}
+                    t={t}
+                  />
                 ))
               ) : (
-                <Empty description={t('common.noData')} />
+                <Empty 
+                  description={t('booking.noRequests')} 
+                  style={styles.emptyState}
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
               )}
             </div>
           ),
         },
         {
           key: 'completed',
-          label: `${t('tripStatus.completed')} (${completedAnnouncements.length})`,
+          label: (
+            <span style={{ fontWeight: activeTab === 'completed' ? 600 : 400 }}>
+              ✅ {t('tripStatus.completed')} ({completedAnnouncements.length})
+            </span>
+          ),
           children: (
-            <div>
+            <div style={{ padding: '8px 0' }}>
               {completedAnnouncements.length > 0 ? (
                 completedAnnouncements.map(ann => (
-                  <AnnouncementCard
-                    key={ann.id}
-                    announcement={ann}
-                    showDriverInfo={false}
-                  />
+                  <div key={ann.id} style={{ marginBottom: 16, opacity: 0.8 }}>
+                    <AnnouncementCard
+                      announcement={ann}
+                      showDriverInfo={false}
+                    />
+                  </div>
                 ))
               ) : (
-                <Empty description={t('common.noData')} />
+                <Empty 
+                  description={t('common.noData')} 
+                  style={styles.emptyState}
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
               )}
             </div>
           ),
@@ -270,9 +625,13 @@ export default function MyAdsPage() {
     : [
         {
           key: 'active',
-          label: `${t('tripStatus.open')} (${activeTrips.length})`,
+          label: (
+            <span style={{ fontWeight: activeTab === 'active' ? 600 : 400 }}>
+              📋 {t('tripStatus.open')} ({activeTrips.length})
+            </span>
+          ),
           children: (
-            <div>
+            <div style={{ padding: '8px 0' }}>
               {activeTrips.length > 0 ? (
                 activeTrips.map(trip => (
                   <TripCard
@@ -287,22 +646,36 @@ export default function MyAdsPage() {
                   />
                 ))
               ) : (
-                <Empty description={t('common.noData')} />
+                <Empty 
+                  description={t('common.noData')} 
+                  style={styles.emptyState}
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
               )}
             </div>
           ),
         },
         {
           key: 'completed',
-          label: `${t('tripStatus.completed')} (${completedTrips.length})`,
+          label: (
+            <span style={{ fontWeight: activeTab === 'completed' ? 600 : 400 }}>
+              ✅ {t('tripStatus.completed')} ({completedTrips.length})
+            </span>
+          ),
           children: (
-            <div>
+            <div style={{ padding: '8px 0' }}>
               {completedTrips.length > 0 ? (
                 completedTrips.map(trip => (
-                  <TripCard key={trip.id} trip={trip} />
+                  <div key={trip.id} style={{ marginBottom: 16, opacity: 0.8 }}>
+                    <TripCard trip={trip} />
+                  </div>
                 ))
               ) : (
-                <Empty description={t('common.noData')} />
+                <Empty 
+                  description={t('common.noData')} 
+                  style={styles.emptyState}
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
               )}
             </div>
           ),
@@ -310,33 +683,31 @@ export default function MyAdsPage() {
       ];
 
   return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 16,
-        }}
-      >
-        <Title level={4} style={{ margin: 0 }}>
+    <div style={styles.pageContainer}>
+      {/* Красивая шапка */}
+      <div style={styles.header}>
+        <Title level={4} style={styles.headerTitle}>
           {isDriver ? t('create.announcementTitle') : t('create.tripTitle')}
         </Title>
 
         <Button
-          type="primary"
           icon={<PlusOutlined />}
           onClick={() => setShowCreateModal(true)}
+          style={styles.createButton}
         >
-          {isDriver ? t('home.createAnnouncement') : t('home.createTrip')}
+          {t('common.create')}
         </Button>
       </div>
 
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={tabItems}
-      />
+      {/* Табы */}
+      <Card style={styles.tabsCard} styles={{ body: { padding: '12px 16px' } }}>
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={tabItems}
+          style={{ marginBottom: -12 }}
+        />
+      </Card>
 
       {/* Модалка создания */}
       <Modal
@@ -345,6 +716,10 @@ export default function MyAdsPage() {
         footer={null}
         width={600}
         destroyOnClose
+        styles={{ 
+          content: { borderRadius: 16 },
+          header: { borderRadius: '16px 16px 0 0' }
+        }}
       >
         {isDriver ? (
           <CreateAnnouncementForm

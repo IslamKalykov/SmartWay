@@ -1,5 +1,6 @@
 # trips/serializers.py
 from rest_framework import serializers
+from django.db import transaction
 from django.utils import timezone
 from .models import Trip, DriverAnnouncement, Booking, Review
 from users.models import Car
@@ -312,30 +313,43 @@ class BookingCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = ("announcement", "seats_count", "message", "contact_phone")
-    
+
     def validate(self, data):
-        announcement = data['announcement']
-        seats = data.get('seats_count', 1)
-        user = self.context['request'].user
-        
+        announcement = data["announcement"]
+        seats = data.get("seats_count", 1)
+        user = self.context["request"].user
+
+        # Нельзя бронировать своё объявление
         if announcement.driver == user:
             raise serializers.ValidationError("Нельзя бронировать своё объявление.")
-        
+
+        # Проверяем, нет ли уже НЕОБРАБОТАННОГО запроса на это объявление
+        existing_pending = Booking.objects.filter(
+            announcement=announcement,
+            passenger=user,
+            status="pending",
+        ).exists()
+
+        if existing_pending:
+            raise serializers.ValidationError(
+                "У вас уже есть запрос на это объявление. Дождитесь решения водителя."
+            )
+
+        # Проверяем, хватает ли свободных мест (с учётом уже подтверждённых)
         if not announcement.can_book(seats):
             raise serializers.ValidationError(
                 f"Недостаточно мест. Доступно: {announcement.free_seats}"
             )
-        
-        if Booking.objects.filter(announcement=announcement, passenger=user).exists():
-            raise serializers.ValidationError("Вы уже забронировали это объявление.")
-        
+
         return data
-    
+
     def create(self, validated_data):
-        user = self.context['request'].user
-        if not validated_data.get('contact_phone'):
-            validated_data['contact_phone'] = user.phone_number
+        user = self.context["request"].user
+        if not validated_data.get("contact_phone"):
+            validated_data["contact_phone"] = user.phone_number
+        # ВСЕГДА создаём новую запись
         return Booking.objects.create(passenger=user, **validated_data)
+
 
 
 class BookingSerializer(serializers.ModelSerializer):

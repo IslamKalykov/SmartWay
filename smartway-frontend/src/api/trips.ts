@@ -1,7 +1,6 @@
 // src/api/trips.ts
 import api from './client';
 import type { SearchFilters } from '../components/SearchFilter';
-import { useTranslation } from 'react-i18next';
 
 export interface Trip {
   id: number;
@@ -16,21 +15,18 @@ export interface Trip {
   status: string;
   contact_phone?: string;
   comment?: string;
-  
-  // Пассажир
+
   passenger?: number;
   passenger_name?: string;
   passenger_phone?: string;
   passenger_verified?: boolean;
   passenger_telegram?: string;
-  
-  // Водитель
+
   driver?: number | null;
   driver_name?: string | null;
   driver_phone?: string | null;
   driver_verified?: boolean | null;
-  
-  // Условия
+
   allow_smoking?: boolean;
   allow_pets?: boolean;
   allow_big_luggage?: boolean;
@@ -38,7 +34,7 @@ export interface Trip {
   with_child?: boolean;
   prefer_verified_driver?: boolean;
   extra_rules?: string;
-  
+
   created_at: string;
   updated_at?: string;
 }
@@ -61,62 +57,79 @@ export interface TripCreateData {
   extra_rules?: string;
 }
 
+// --- утилита для языка ---
+function getLang(explicitLang?: string) {
+  return (
+    explicitLang ||
+    (typeof localStorage !== 'undefined' &&
+      (localStorage.getItem('i18nextLng') || '').slice(0, 2)) ||
+    'ru'
+  );
+}
+
 // ============ Trips API (Заказы пассажиров) ============
 
-export async function fetchAvailableTrips(filters?: SearchFilters): Promise<Trip[]> {
+export async function fetchAvailableTrips(
+  filters?: SearchFilters,
+  lang?: string,
+): Promise<Trip[]> {
+  const lng = getLang(lang);
+
   const params: Record<string, any> = {};
-  const { i18n } = useTranslation();
   if (filters?.from_location) params.from_location = filters.from_location;
   if (filters?.to_location) params.to_location = filters.to_location;
   if (filters?.date) params.date = filters.date;
-  params.lang = i18n.language?.slice(0,2); // если импортировать i18n
-  
-  const response = await api.get('/trips/available/', { params });
-  
-  if (Array.isArray(response.data)) {
-    return response.data;
-  }
-  if (response.data?.results) {
-    return response.data.results;
-  }
+  params.lang = lng;
+
+  const response = await api.get('/trips/available/', {
+    params,
+    headers: { 'Accept-Language': lng },
+  });
+
+  if (Array.isArray(response.data)) return response.data;
+  if (response.data?.results) return response.data.results;
   return [];
 }
 
-export async function fetchMyTrips(): Promise<Trip[]> {
-  const resp = await api.get('/trips/my/');
-  if (Array.isArray(resp.data)) {
-    return resp.data;
-  }
-  if (resp.data?.results) {
-    return resp.data.results;
-  }
+export async function fetchMyTrips(lang?: string): Promise<Trip[]> {
+  const lng = getLang(lang);
+  const resp = await api.get('/trips/my/', {
+    params: { lang: lng },
+    headers: { 'Accept-Language': lng },
+  });
+  if (Array.isArray(resp.data)) return resp.data;
+  if (resp.data?.results) return resp.data.results;
   return [];
 }
 
-export async function fetchMyActiveTrips(): Promise<Trip[]> {
-  const resp = await api.get('/trips/my-active/');
-  if (Array.isArray(resp.data)) {
-    return resp.data;
-  }
-  if (resp.data?.results) {
-    return resp.data.results;
-  }
+export async function fetchMyActiveTrips(lang?: string): Promise<Trip[]> {
+  const lng = getLang(lang);
+  const resp = await api.get('/trips/my-active/', {
+    params: { lang: lng },
+    headers: { 'Accept-Language': lng },
+  });
+  if (Array.isArray(resp.data)) return resp.data;
+  if (resp.data?.results) return resp.data.results;
   return [];
 }
 
-export async function fetchMyCompletedTrips(): Promise<Trip[]> {
-  const resp = await api.get('/trips/my-completed/');
-  if (Array.isArray(resp.data)) {
-    return resp.data;
-  }
-  if (resp.data?.results) {
-    return resp.data.results;
-  }
+export async function fetchMyCompletedTrips(lang?: string): Promise<Trip[]> {
+  const lng = getLang(lang);
+  const resp = await api.get('/trips/my-completed/', {
+    params: { lang: lng },
+    headers: { 'Accept-Language': lng },
+  });
+  if (Array.isArray(resp.data)) return resp.data;
+  if (resp.data?.results) return resp.data.results;
   return [];
 }
 
-export async function getTripDetail(id: number): Promise<Trip> {
-  const resp = await api.get<Trip>(`/trips/${id}/`);
+export async function getTripDetail(id: number, lang?: string): Promise<Trip> {
+  const lng = getLang(lang);
+  const resp = await api.get<Trip>(`/trips/${id}/`, {
+    params: { lang: lng },
+    headers: { 'Accept-Language': lng },
+  });
   return resp.data;
 }
 
@@ -125,7 +138,10 @@ export async function createTrip(data: TripCreateData): Promise<Trip> {
   return resp.data;
 }
 
-export async function updateTrip(id: number, data: Partial<TripCreateData>): Promise<Trip> {
+export async function updateTrip(
+  id: number,
+  data: Partial<TripCreateData>,
+): Promise<Trip> {
   const resp = await api.patch<Trip>(`/trips/${id}/`, data);
   return resp.data;
 }
@@ -167,36 +183,28 @@ export interface Review {
   created_at: string;
 }
 
-export async function fetchMyDriverTrips(): Promise<Trip[]> {
-  const resp = await api.get('/trips/my-driver/');
-  if (Array.isArray(resp.data)) {
-    return resp.data;
-  }
-  if (resp.data?.results) {
-    return resp.data.results;
-  }
+export async function fetchMyDriverTrips(lang?: string): Promise<Trip[]> {
+  const lng = getLang(lang);
+  const resp = await api.get('/trips/my-driver/', {
+    params: { lang: lng },
+    headers: { 'Accept-Language': lng },
+  });
+  if (Array.isArray(resp.data)) return resp.data;
+  if (resp.data?.results) return resp.data.results;
   return [];
 }
 
 export async function getMyReceivedReviews(): Promise<Review[]> {
   const resp = await api.get('/reviews/my_received/');
-  if (Array.isArray(resp.data)) {
-    return resp.data;
-  }
-  if (resp.data?.results) {
-    return resp.data.results;
-  }
+  if (Array.isArray(resp.data)) return resp.data;
+  if (resp.data?.results) return resp.data.results;
   return [];
 }
 
 export async function getMyWrittenReviews(): Promise<Review[]> {
   const resp = await api.get('/reviews/my_written/');
-  if (Array.isArray(resp.data)) {
-    return resp.data;
-  }
-  if (resp.data?.results) {
-    return resp.data.results;
-  }
+  if (Array.isArray(resp.data)) return resp.data;
+  if (resp.data?.results) return resp.data.results;
   return [];
 }
 

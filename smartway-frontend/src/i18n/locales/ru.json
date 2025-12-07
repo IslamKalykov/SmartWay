@@ -87,7 +87,9 @@
         "call": "Позвонить",
         "cancel": "Отменить",
         "complete": "Завершить",
-        "start": "Начать поездку"
+        "start": "Начать поездку",
+        "finish": "Завершить",
+        "cancelConfirm": "Отменить эту поездку?"
     },
     "tripStatus": {
         "open": "Открыта",
@@ -104,16 +106,24 @@
         "cancelled": "Отменено",
         "expired": "Просрочено"
     },
+    "announcement": {
+        "cancelConfirm": "Отменить это объявление?",
+        "completeConfirm": "Завершить эту поездку?"
+    },
     "booking": {
         "title": "Бронирование",
+        "requests": "Заявки",
+        "noRequests": "Нет новых заявок",
+        "passenger": "Пассажир",
         "seatsCount": "Количество мест",
-        "message": "Сообщение водителю",
-        "messagePlaceholder": "Напишите пожелания или вопросы...",
-        "confirm": "Подтвердить бронь",
-        "cancel": "Отменить",
-        "pending": "Ожидает подтверждения",
-        "confirmed": "Подтверждено",
-        "rejected": "Отклонено"
+        "message": "Сообщение",
+        "messagePlaceholder": "Напишите водителю...",
+        "confirm": "Забронировать",
+        "confirmed": "Бронирование подтверждено!",
+        "rejected": "Бронирование отклонено",
+        "accept": "Принять",
+        "reject": "Отклонить",
+        "rejectConfirm": "Отклонить эту заявку?"
     },
     "create": {
         "tripTitle": "Создать заказ",
@@ -166,8 +176,7 @@
         "verifiedPassenger": "Проверенный пассажир",
         "becomeDriver": "Стать водителем",
         "verification": "Верификация",
-        "logout": "Выйти из аккаунта",
-        "logoutConfirm": "Вы уверены, что хотите выйти?"
+        "logout": "Выйти"
     },
     "car": {
         "brand": "Марка",
@@ -210,7 +219,8 @@
         "today": "Сегодня",
         "tomorrow": "Завтра",
         "noData": "Нет данных",
-        "tryAgain": "Попробовать снова"
+        "tryAgain": "Попробовать снова",
+        "create": "Создать"
     },
     "errors": {
         "networkError": "Ошибка сети. Проверьте подключение",

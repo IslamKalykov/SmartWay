@@ -234,7 +234,7 @@ class Booking(models.Model):
     
     class Meta:
         ordering = ['-created_at']
-        unique_together = ('announcement', 'passenger')
+        # unique_together = ('announcement', 'passenger')
         verbose_name = "Бронирование"
         verbose_name_plural = "Бронирования"
 
