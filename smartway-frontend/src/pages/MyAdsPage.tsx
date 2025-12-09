@@ -397,19 +397,22 @@ export default function MyAdsPage() {
   useEffect(() => {
     loadData();
   }, [isDriver, i18n.language]);
-
+  
   const loadData = async () => {
     try {
       setLoading(true);
+      const lng = i18n.language?.slice(0, 2);
+  
       if (isDriver) {
         const [annData, bookingsData] = await Promise.all([
-          fetchMyAnnouncements(),
-          fetchIncomingBookings(),
+          fetchMyAnnouncements(lng),
+          fetchIncomingBookings(lng),
         ]);
+  
         setAnnouncements(annData);
         setBookings(bookingsData);
       } else {
-        const tripsData = await fetchMyTrips();
+        const tripsData = await fetchMyTrips(lng);
         setTrips(tripsData);
       }
     } catch (error) {
@@ -419,6 +422,7 @@ export default function MyAdsPage() {
       setLoading(false);
     }
   };
+  
 
   // === Действия для пассажира ===
   const handleCancelTrip = async (tripId: number) => {

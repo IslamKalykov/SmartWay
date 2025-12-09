@@ -36,6 +36,7 @@ temp/
 *.pdb
 
 # Virtualenv
+*./.venv/
 .venv/
 venv/
 env/

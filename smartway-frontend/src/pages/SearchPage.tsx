@@ -425,14 +425,16 @@ export default function SearchPage() {
     try {
       setLoading(true);
 
-      const annPromise = fetchAvailableAnnouncements(currentFilters);
+      const lng = i18n.language?.slice(0, 2);
+
+      const annPromise = fetchAvailableAnnouncements(currentFilters, lng);
 
       if (isDriver) {
         const [annData, tripsRes, carsRes, myTripsRes] = await Promise.all([
           annPromise,
-          fetchAvailableTrips(currentFilters),
+          fetchAvailableTrips(currentFilters, lng),
           getMyCars(),
-          fetchMyDriverTrips(),
+          fetchMyDriverTrips(lng),
         ]);
 
         setAnnouncements(annData || []);
@@ -443,6 +445,7 @@ export default function SearchPage() {
         const annData = await annPromise;
         setAnnouncements(annData || []);
       }
+
     } catch (err: any) {
       console.error('Load data error:', err);
       setError(err?.message || 'Ошибка загрузки данных');

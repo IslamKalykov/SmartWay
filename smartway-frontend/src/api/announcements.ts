@@ -1,5 +1,6 @@
 // src/api/announcements.ts
 import api from './client';
+import type { SearchFilters } from '../components/SearchFilter'; // если ещё нет
 
 export interface Announcement {
   id: number;
@@ -89,33 +90,58 @@ export interface Booking {
   created_at: string;
 }
 
+function getLang(explicitLang?: string) {
+  return (
+    explicitLang ||
+    (typeof localStorage !== 'undefined' &&
+      (localStorage.getItem('i18nextLng') || '').slice(0, 2)) ||
+    'ru'
+  );
+}
+
 // ============ Announcements API ============
 
-export async function fetchAvailableAnnouncements(filters?: SearchFilters): Promise<Announcement[]> {
+export async function fetchAvailableAnnouncements(
+  filters?: SearchFilters,
+  lang?: string,
+): Promise<Announcement[]> {
+  const lng = getLang(lang);
+
   const params: Record<string, any> = {};
-  
   if (filters?.from_location) params.from = filters.from_location;
   if (filters?.to_location) params.to = filters.to_location;
   if (filters?.date) params.date = filters.date;
-  
-  const response = await api.get('/announcements/available/', { params });
-  
-  if (Array.isArray(response.data)) {
-    return response.data;
-  }
-  if (response.data?.results) {
-    return response.data.results;
-  }
+  params.lang = lng;
+
+  const response = await api.get('/announcements/available/', {
+    params,
+    headers: { 'Accept-Language': lng },
+  });
+
+  if (Array.isArray(response.data)) return response.data;
+  if (response.data?.results) return response.data.results;
   return [];
 }
 
-export async function fetchMyAnnouncements(): Promise<Announcement[]> {
-  const resp = await api.get('/announcements/my/');
-  return resp.data;
+export async function fetchMyAnnouncements(lang?: string): Promise<Announcement[]> {
+  const lng = getLang(lang);
+
+  const resp = await api.get('/announcements/my/', {
+    params: { lang: lng },
+    headers: { 'Accept-Language': lng },
+  });
+
+  if (Array.isArray(resp.data)) return resp.data;
+  if (resp.data?.results) return resp.data.results;
+  return [];
 }
 
-export async function getAnnouncementDetail(id: number): Promise<Announcement> {
-  const resp = await api.get<Announcement>(`/announcements/${id}/`);
+export async function getAnnouncementDetail(id: number, lang?: string): Promise<Announcement> {
+  const lng = getLang(lang);
+  const resp = await api.get<Announcement>(`/announcements/${id}/`, {
+    params: { lang: lng },
+    headers: { 'Accept-Language': lng },
+  });
   return resp.data;
 }
 
@@ -151,9 +177,17 @@ export async function fetchMyBookings(): Promise<Booking[]> {
   return resp.data;
 }
 
-export async function fetchIncomingBookings(): Promise<Booking[]> {
-  const resp = await api.get('/bookings/incoming/');
-  return resp.data;
+export async function fetchIncomingBookings(lang?: string): Promise<Booking[]> {
+  const lng = getLang(lang);
+
+  const resp = await api.get('/bookings/incoming/', {
+    params: { lang: lng },
+    headers: { 'Accept-Language': lng },
+  });
+
+  if (Array.isArray(resp.data)) return resp.data;
+  if (resp.data?.results) return resp.data.results;
+  return [];
 }
 
 export async function createBooking(data: {

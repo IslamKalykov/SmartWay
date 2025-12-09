@@ -93,10 +93,12 @@ export async function fetchAvailableTrips(
 
 export async function fetchMyTrips(lang?: string): Promise<Trip[]> {
   const lng = getLang(lang);
+
   const resp = await api.get('/trips/my/', {
     params: { lang: lng },
     headers: { 'Accept-Language': lng },
   });
+
   if (Array.isArray(resp.data)) return resp.data;
   if (resp.data?.results) return resp.data.results;
   return [];
