@@ -1,4 +1,4 @@
-// src/components/layout/MainLayout.tsx
+// src/components/layout/MainLayout.tsx - ИСПРАВЛЕННЫЙ
 import { Layout, Menu, Button, Dropdown, Tag, Space } from "antd";
 import {
   HomeOutlined,
@@ -17,6 +17,11 @@ import LanguageSwitcher, { LanguageSwitcherCompact } from "../LanguageSwitcher";
 import type { ReactNode } from "react";
 
 const { Header, Content, Footer } = Layout;
+
+// Константы для высоты элементов
+const DESKTOP_HEADER_HEIGHT = 64;
+const MOBILE_HEADER_HEIGHT = 56;
+const MOBILE_BOTTOM_NAV_HEIGHT = 60;
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -128,6 +133,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
             zIndex: 100,
             background: "#fff",
             padding: "0 24px",
+            height: DESKTOP_HEADER_HEIGHT,
+            lineHeight: `${DESKTOP_HEADER_HEIGHT}px`,
             display: "flex",
             alignItems: "center",
             gap: 16,
@@ -195,7 +202,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
             zIndex: 100,
             background: "#fff",
             padding: "0 16px",
-            height: 56,
+            height: MOBILE_HEADER_HEIGHT,
+            lineHeight: `${MOBILE_HEADER_HEIGHT}px`,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -234,13 +242,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
       {/* ===== CONTENT ===== */}
       <Content
         style={{
-          padding: isMobile
-            ? "72px 16px 80px"
-            : "88px 16px 32px",
+          // ИСПРАВЛЕНО: используем константы для правильного расчета padding
+          paddingTop: isMobile 
+            ? MOBILE_HEADER_HEIGHT + 16 // header + отступ
+            : DESKTOP_HEADER_HEIGHT + 24, // header + отступ
+          paddingLeft: 16,
+          paddingRight: 16,
+          paddingBottom: isMobile 
+            ? MOBILE_BOTTOM_NAV_HEIGHT + 20 // bottom nav + отступ  
+            : 32,
           maxWidth: 1000,
           margin: "0 auto",
           width: "100%",
-          minHeight: isMobile ? "calc(100vh - 60px)" : "calc(100vh - 128px)",
+          minHeight: isMobile 
+            ? `calc(100vh - ${MOBILE_BOTTOM_NAV_HEIGHT}px)` 
+            : `calc(100vh - ${DESKTOP_HEADER_HEIGHT}px)`,
           boxSizing: "border-box",
         }}
       >
@@ -271,7 +287,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             bottom: 0,
             left: 0,
             right: 0,
-            height: 60,
+            height: MOBILE_BOTTOM_NAV_HEIGHT,
             background: "#fff",
             borderTop: "1px solid #e8e8e8",
             display: "flex",
