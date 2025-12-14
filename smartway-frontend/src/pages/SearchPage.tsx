@@ -225,9 +225,9 @@ function TripDetailModal({
 
   const handleTelegram = () => {
     if (telegramUsername) {
-      window.open(`https://t.me/${telegramUsername.replace('@', '')}`, '_blank');
+      window.location.href = `https://t.me/${telegramUsername.replace('@', '')}`;
     } else if (cleanPhone) {
-      window.open(`https://t.me/+${cleanPhone}`, '_blank');
+      window.location.href = `https://t.me/+${cleanPhone}`;
     }
   };
 
@@ -323,24 +323,24 @@ function TripDetailModal({
           </div>
           <div style={styles.contactButtons}>
             {(telegramUsername || cleanPhone) && (
-              <Tooltip title="Telegram">
+              
                 <Button
                   type="primary"
                   icon={<SendOutlined />}
                   onClick={handleTelegram}
                   style={{ ...styles.contactBtn, ...styles.telegramBtn }}
                 />
-              </Tooltip>
+              
             )}
             {cleanPhone && (
-              <Tooltip title={t('contact.call')}>
+              
                 <Button
                   type="primary"
                   icon={<PhoneOutlined />}
                   onClick={handleCall}
                   style={{ ...styles.contactBtn, ...styles.phoneBtn }}
                 />
-              </Tooltip>
+              
             )}
           </div>
         </div>

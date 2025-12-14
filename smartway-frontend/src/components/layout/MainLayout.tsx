@@ -1,4 +1,4 @@
-// src/components/layout/MainLayout.tsx - ИСПРАВЛЕННЫЙ
+// src/components/layout/MainLayout.tsx - ИСПРАВЛЕННЫЙ для iOS safe-area
 import { Layout, Menu, Button, Dropdown, Tag, Space } from "antd";
 import {
   HomeOutlined,
@@ -242,14 +242,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
       {/* ===== CONTENT ===== */}
       <Content
         style={{
-          // ИСПРАВЛЕНО: используем константы для правильного расчета padding
           paddingTop: isMobile 
-            ? MOBILE_HEADER_HEIGHT + 16 // header + отступ
-            : DESKTOP_HEADER_HEIGHT + 24, // header + отступ
+            ? MOBILE_HEADER_HEIGHT + 16
+            : DESKTOP_HEADER_HEIGHT + 24,
           paddingLeft: 16,
           paddingRight: 16,
           paddingBottom: isMobile 
-            ? MOBILE_BOTTOM_NAV_HEIGHT + 20 // bottom nav + отступ  
+            ? MOBILE_BOTTOM_NAV_HEIGHT + 40 // увеличен отступ для safe-area
             : 32,
           maxWidth: 1000,
           margin: "0 auto",
@@ -279,15 +278,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </Footer>
       )}
 
-      {/* ===== MOBILE BOTTOM MENU ===== */}
+      {/* ===== MOBILE BOTTOM MENU - ИСПРАВЛЕНО для iOS safe-area ===== */}
       {isMobile && (
         <div
+          className="mobile-bottom-nav"
           style={{
             position: "fixed",
             bottom: 0,
             left: 0,
             right: 0,
-            height: MOBILE_BOTTOM_NAV_HEIGHT,
             background: "#fff",
             borderTop: "1px solid #e8e8e8",
             display: "flex",
@@ -295,7 +294,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
             alignItems: "center",
             zIndex: 200,
             boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
-            paddingBottom: "env(safe-area-inset-bottom)",
+            // Высота контента + safe-area
+            paddingTop: 8,
+            paddingBottom: `calc(8px + env(safe-area-inset-bottom, 0px))`,
+            minHeight: MOBILE_BOTTOM_NAV_HEIGHT,
           }}
         >
           {/* Главная */}

@@ -73,9 +73,9 @@ export default function TripCard({
   const handleTelegram = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (trip.passenger_telegram) {
-      window.open(`https://t.me/${trip.passenger_telegram}`, '_blank');
+      window.location.href = `https://t.me/${trip.passenger_telegram}`;
     } else if (cleanPhone) {
-      window.open(`https://t.me/+${cleanPhone}`, '_blank');
+      window.location.href = `https://t.me/+${cleanPhone}`;
     }
   };
 
@@ -178,22 +178,18 @@ export default function TripCard({
             {/* Кнопки связи */}
             {showContactButtons && (phoneNumber || trip.passenger_telegram) && (
               <Space size={8}>
-                <Tooltip title={t('contact.telegram')}>
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<MessageOutlined />}
-                    onClick={handleTelegram}
-                  />
-                </Tooltip>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<MessageOutlined />}
+                  onClick={handleTelegram}
+                />
                 {phoneNumber && (
-                  <Tooltip title={t('contact.call')}>
-                    <Button
-                      size="small"
-                      icon={<PhoneOutlined />}
-                      onClick={handleCall}
-                    />
-                  </Tooltip>
+                  <Button
+                    size="small"
+                    icon={<PhoneOutlined />}
+                    onClick={handleCall}
+                  />
                 )}
               </Space>
             )}

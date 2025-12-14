@@ -1,18 +1,20 @@
 // src/pages/MyAdsPage.tsx
 import { useState, useEffect } from 'react';
 import {
-  Card, Typography, Button, Tabs, Empty, Spin, Modal, message, Badge, Space, Avatar, Tag, Tooltip
+  Card, Typography, Button, Tabs, Empty, Spin, Modal, message, Badge, Space, Avatar, Tag
 } from 'antd';
 import {
   PlusOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  UserOutlined, PhoneOutlined, MessageOutlined,
-  ClockCircleOutlined, CarOutlined, CheckOutlined, StopOutlined
+  UserOutlined, PhoneOutlined, ClockCircleOutlined, CarOutlined, 
+  CheckOutlined, StopOutlined, SendOutlined, SafetyCertificateOutlined,
+  DollarOutlined, EnvironmentOutlined
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
 import { useAuth } from '../auth/AuthContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 import TripCard from '../components/TripCard';
 import AnnouncementCard from '../components/AnnouncementCard';
 import CreateTripForm from '../components/CreateTripForm';
@@ -36,40 +38,60 @@ import {
 
 const { Title, Text } = Typography;
 
-// Стили для улучшенного дизайна
-const styles = {
+// ==================== Стили ====================
+const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
-    padding: '0 0 24px 0',
+    padding: 0,
+    paddingBottom: 100, // место для FAB кнопки
+    position: 'relative',
+    minHeight: '100%',
   },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    padding: '16px 20px',
+  
+  // Отступ для контента под фиксированными табами
+  tabsPlaceholder: {
+    height: 56, // высота табов
+  },
+  
+  // FAB кнопка создания - СПРАВА
+  fabButton: {
+    position: 'fixed',
+    left: 'auto', // явно убираем left
+    right: 20, // справа
+    bottom: 80, // выше нижней навигации
+    width: 56,
+    height: 56,
+    borderRadius: '50%',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    borderRadius: 16,
-    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+    border: 'none',
+    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    zIndex: 100,
   },
-  headerTitle: {
-    margin: 0,
+  
+  fabButtonHover: {
+    transform: 'scale(1.1)',
+    boxShadow: '0 6px 25px rgba(102, 126, 234, 0.5)',
+  },
+  
+  fabIcon: {
+    fontSize: 24,
     color: '#fff',
-    fontWeight: 600,
   },
-  createButton: {
-    background: '#fff',
-    color: '#667eea',
-    border: 'none',
-    fontWeight: 600,
-    height: 40,
-    borderRadius: 10,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  
+  // Контент
+  contentArea: {
+    paddingTop: 16,
   },
-  tabsCard: {
-    borderRadius: 16,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-    border: 'none',
+  
+  emptyState: {
+    padding: '40px 0',
   },
+  
+  // Карточки заявок
   bookingCard: {
     marginBottom: 16,
     borderRadius: 16,
@@ -77,10 +99,6 @@ const styles = {
     overflow: 'hidden',
     transition: 'all 0.3s ease',
     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-  },
-  bookingCardHover: {
-    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-    transform: 'translateY(-2px)',
   },
   bookingHeader: {
     display: 'flex',
@@ -146,9 +164,6 @@ const styles = {
     fontWeight: 600,
     borderRadius: 8,
     height: 36,
-    paddingLeft: 16,
-    paddingRight: 16,
-    boxShadow: '0 2px 8px rgba(17, 153, 142, 0.3)',
   },
   rejectButton: {
     background: '#fff',
@@ -157,104 +172,61 @@ const styles = {
     fontWeight: 500,
     borderRadius: 8,
     height: 36,
-    paddingLeft: 16,
-    paddingRight: 16,
   },
-  completeButton: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    border: 'none',
-    color: '#fff',
-    fontWeight: 500,
-    borderRadius: 8,
-    height: 34,
-    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-  },
-  cancelButton: {
-    background: '#fff',
-    border: '1px solid #d9d9d9',
-    color: '#666',
-    fontWeight: 500,
-    borderRadius: 8,
-    height: 34,
-  },
+  
+  // Обёртка объявлений
   announcementWrapper: {
+    position: 'relative',
     marginBottom: 16,
-    position: 'relative' as const,
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
   },
   announcementActions: {
     display: 'flex',
     gap: 10,
+    marginTop: -8,
+    paddingTop: 16,
+    paddingBottom: 4,
     justifyContent: 'flex-end',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTop: '1px solid #f0f0f0',
   },
-  statusBadge: {
-    position: 'absolute' as const,
-    top: 12,
-    right: 12,
-    zIndex: 1,
+  cancelButton: {
+    background: '#fff',
+    border: '1px solid #ff4d4f',
+    color: '#ff4d4f',
+    fontWeight: 500,
+    borderRadius: 8,
+    height: 40,
+    paddingLeft: 20,
+    paddingRight: 20,
   },
-  emptyState: {
-    padding: '40px 20px',
-  },
-  tripInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    color: '#888',
-    fontSize: 13,
+  completeButton: {
+    background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    border: 'none',
+    color: '#fff',
+    fontWeight: 600,
+    borderRadius: 8,
+    height: 40,
+    paddingLeft: 20,
+    paddingRight: 20,
   },
 };
 
-// Компонент карточки бронирования
-interface BookingCardProps {
+// ==================== Компонент карточки заявки ====================
+interface BookingCardItemProps {
   booking: Booking;
   onConfirm: (id: number) => void;
   onReject: (id: number) => void;
   t: (key: string) => string;
 }
 
-function BookingCardItem({ booking, onConfirm, onReject, t }: BookingCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
-
-  // Получаем информацию о поездке из бронирования
-  const tripInfo = booking.announcement_info;
-
+function BookingCardItem({ booking, onConfirm, onReject, t }: BookingCardItemProps) {
   return (
-    <Card
-      style={{
-        ...styles.bookingCard,
-        ...(isHovered ? styles.bookingCardHover : {}),
-      }}
-      styles={{ body: { padding: 16 } }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Информация о поездке */}
-      {tripInfo && (
-        <div style={{ 
-          marginBottom: 12, 
-          padding: '8px 12px', 
-          background: '#f8f9fa', 
-          borderRadius: 8,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8
-        }}>
-          <CarOutlined style={{ color: '#667eea' }} />
-          <Text style={{ fontWeight: 500 }}>
-            {tripInfo.from_location} → {tripInfo.to_location}
-          </Text>
-          {tripInfo.departure_time && (
-            <Text type="secondary" style={{ marginLeft: 'auto', fontSize: 12 }}>
-              {dayjs(tripInfo.departure_time).format('DD.MM HH:mm')}
-            </Text>
-          )}
-        </div>
-      )}
-
-      {/* Шапка с пассажиром */}
+    <Card style={styles.bookingCard} styles={{ body: { padding: 16 } }}>
+      {/* Header с аватаром */}
       <div style={styles.bookingHeader}>
         <Avatar 
           size={48} 
@@ -264,55 +236,61 @@ function BookingCardItem({ booking, onConfirm, onReject, t }: BookingCardProps) 
         />
         <div style={styles.bookingInfo}>
           <div style={styles.bookingName}>
-            {booking.passenger_name || t('booking.passenger')}
+            {booking.passenger_name}
           </div>
           <div style={styles.bookingMeta}>
             <Tag style={styles.seatsTag}>
-              {booking.seats_count} {booking.seats_count === 1 ? t('trip.seat') : t('trip.seats')}
+              {booking.seats_requested} {t('trip.seats')}
             </Tag>
-            {booking.created_at && (
-              <Tag icon={<ClockCircleOutlined />} style={styles.timeTag}>
-                {dayjs(booking.created_at).format('DD.MM HH:mm')}
-              </Tag>
-            )}
+            <Tag style={styles.timeTag} icon={<ClockCircleOutlined />}>
+              {dayjs(booking.created_at).format('DD.MM HH:mm')}
+            </Tag>
           </div>
         </div>
-        
-        {/* Контакты */}
-        <Space size={4}>
+      </div>
+
+      {/* Информация о маршруте */}
+      <div style={{ marginBottom: 12 }}>
+        <Text type="secondary">
+          <EnvironmentOutlined style={{ marginRight: 4 }} />
+          {booking.announcement_from} → {booking.announcement_to}
+        </Text>
+      </div>
+
+      {/* Сообщение */}
+      {booking.message && (
+        <div style={styles.bookingMessage}>
+          <p style={styles.bookingMessageText}>"{booking.message}"</p>
+        </div>
+      )}
+
+      {/* Контакты */}
+      <div style={{ marginBottom: 14 }}>
+        <Space wrap>
           {booking.passenger_phone && (
-            <Tooltip title={t('contact.call')}>
-              <Button
-                type="text"
-                size="small"
-                icon={<PhoneOutlined />}
-                onClick={() => window.location.href = `tel:${booking.passenger_phone}`}
-                style={{ color: '#667eea' }}
-              />
-            </Tooltip>
+            <Button 
+              type="text" 
+              size="small"
+              icon={<PhoneOutlined />}
+              href={`tel:${booking.passenger_phone}`}
+            >
+              {booking.passenger_phone}
+            </Button>
           )}
           {booking.passenger_telegram && (
-            <Tooltip title={t('contact.telegram')}>
-              <Button
-                type="text"
-                size="small"
-                icon={<MessageOutlined />}
-                onClick={() => window.open(`https://t.me/${booking.passenger_telegram}`, '_blank')}
-                style={{ color: '#667eea' }}
-              />
-            </Tooltip>
+            <Button 
+              type="text" 
+              size="small"
+              icon={<SendOutlined />}
+              onClick={() => {
+                window.location.href = `https://t.me/${booking.passenger_telegram.replace('@', '')}`;
+              }}
+            >
+              {booking.passenger_telegram}
+            </Button>
           )}
         </Space>
       </div>
-
-      {/* Сообщение от пассажира */}
-      {booking.message && (
-        <div style={styles.bookingMessage}>
-          <Text style={styles.bookingMessageText}>
-            "{booking.message}"
-          </Text>
-        </div>
-      )}
 
       {/* Кнопки действий */}
       <div style={styles.actionButtons}>
@@ -324,6 +302,7 @@ function BookingCardItem({ booking, onConfirm, onReject, t }: BookingCardProps) 
           {t('booking.reject')}
         </Button>
         <Button
+          type="primary"
           icon={<CheckCircleOutlined />}
           onClick={() => onConfirm(booking.id)}
           style={styles.confirmButton}
@@ -335,7 +314,7 @@ function BookingCardItem({ booking, onConfirm, onReject, t }: BookingCardProps) 
   );
 }
 
-// Компонент обёртки для объявления с кнопками
+// ==================== Компонент обёртки для объявления с кнопками ====================
 interface AnnouncementWrapperProps {
   announcement: Announcement;
   onComplete: (id: number) => void;
@@ -381,10 +360,36 @@ function AnnouncementWrapper({ announcement, onComplete, onCancel, t }: Announce
   );
 }
 
+// ==================== FAB компонент ====================
+interface FABProps {
+  onClick: () => void;
+}
+
+function FloatingActionButton({ onClick }: FABProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        ...styles.fabButton,
+        ...(isHovered ? styles.fabButtonHover : {}),
+      }}
+      aria-label="Создать"
+    >
+      <PlusOutlined style={styles.fabIcon} />
+    </button>
+  );
+}
+
+// ==================== Главный компонент ====================
 export default function MyAdsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+  const isMobile = useIsMobile(768);
   const isDriver = user?.is_driver;
 
   const [loading, setLoading] = useState(true);
@@ -394,25 +399,37 @@ export default function MyAdsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
 
+  // Адаптивные стили для фиксированного header
+  const stickyHeaderStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: isMobile ? 56 : 64, // высота хедера
+    left: isMobile ? 0 : '50%',
+    right: isMobile ? 0 : 'auto',
+    transform: isMobile ? 'none' : 'translateX(-50%)',
+    width: isMobile ? '100%' : '100%',
+    maxWidth: isMobile ? '100%' : 968, // как у контента
+    zIndex: 50,
+    background: '#fff',
+    padding: '8px 16px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+  };
+
   useEffect(() => {
     loadData();
   }, [isDriver, i18n.language]);
-  
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const lng = i18n.language?.slice(0, 2);
-  
       if (isDriver) {
         const [annData, bookingsData] = await Promise.all([
-          fetchMyAnnouncements(lng),
-          fetchIncomingBookings(lng),
+          fetchMyAnnouncements(),
+          fetchIncomingBookings(),
         ]);
-  
         setAnnouncements(annData);
         setBookings(bookingsData);
       } else {
-        const tripsData = await fetchMyTrips(lng);
+        const tripsData = await fetchMyTrips();
         setTrips(tripsData);
       }
     } catch (error) {
@@ -422,61 +439,37 @@ export default function MyAdsPage() {
       setLoading(false);
     }
   };
-  
 
   // === Действия для пассажира ===
   const handleCancelTrip = async (tripId: number) => {
-    Modal.confirm({
-      title: t('trip.cancelConfirm'),
-      okText: t('common.confirm'),
-      cancelText: t('common.cancel'),
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await cancelTrip(tripId);
-          message.success(t('common.success'));
-          loadData();
-        } catch (error: any) {
-          message.error(error?.response?.data?.detail || t('errors.serverError'));
-        }
-      },
-    });
+    try {
+      await cancelTrip(tripId);
+      message.success(t('common.success'));
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    }
   };
 
   // === Действия для водителя ===
   const handleCancelAnnouncement = async (announcementId: number) => {
-    Modal.confirm({
-      title: t('announcement.cancelConfirm'),
-      okText: t('common.confirm'),
-      cancelText: t('common.cancel'),
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await cancelAnnouncement(announcementId);
-          message.success(t('common.success'));
-          loadData();
-        } catch (error: any) {
-          message.error(error?.response?.data?.detail || t('errors.serverError'));
-        }
-      },
-    });
+    try {
+      await cancelAnnouncement(announcementId);
+      message.success(t('common.success'));
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    }
   };
 
   const handleCompleteAnnouncement = async (announcementId: number) => {
-    Modal.confirm({
-      title: t('announcement.completeConfirm'),
-      okText: t('common.confirm'),
-      cancelText: t('common.cancel'),
-      onOk: async () => {
-        try {
-          await completeAnnouncement(announcementId);
-          message.success(t('common.success'));
-          loadData();
-        } catch (error: any) {
-          message.error(error?.response?.data?.detail || t('errors.serverError'));
-        }
-      },
-    });
+    try {
+      await completeAnnouncement(announcementId);
+      message.success(t('common.success'));
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    }
   };
 
   const handleConfirmBooking = async (bookingId: number) => {
@@ -490,51 +483,32 @@ export default function MyAdsPage() {
   };
 
   const handleRejectBooking = async (bookingId: number) => {
-    Modal.confirm({
-      title: t('booking.rejectConfirm'),
-      okText: t('common.confirm'),
-      cancelText: t('common.cancel'),
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await rejectBooking(bookingId);
-          message.success(t('common.success'));
-          loadData();
-        } catch (error: any) {
-          message.error(error?.response?.data?.detail || t('errors.serverError'));
-        }
-      },
-    });
+    try {
+      await rejectBooking(bookingId);
+      message.success(t('common.success'));
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    }
   };
 
-  // Фильтрация по статусу
-  const activeAnnouncements = announcements.filter(a =>
-    ['active', 'full'].includes(a.status)
-  );
-  const completedAnnouncements = announcements.filter(a =>
-    ['completed', 'cancelled', 'expired'].includes(a.status)
-  );
-
-  const activeTrips = trips.filter(t =>
-    ['open', 'taken', 'in_progress'].includes(t.status)
-  );
-  const completedTrips = trips.filter(t =>
-    ['completed', 'cancelled', 'expired'].includes(t.status)
-  );
-
+  // Фильтрация данных
+  const activeAnnouncements = announcements.filter(a => ['active', 'full'].includes(a.status));
+  const completedAnnouncements = announcements.filter(a => ['completed', 'cancelled'].includes(a.status));
   const pendingBookings = bookings.filter(b => b.status === 'pending');
+
+  const activeTrips = trips.filter(t => ['open', 'assigned'].includes(t.status));
+  const completedTrips = trips.filter(t => ['completed', 'cancelled'].includes(t.status));
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: 50 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
         <Spin size="large" />
-        <div style={{ marginTop: 16 }}>
-          <Text type="secondary">{t('common.loading')}</Text>
-        </div>
       </div>
     );
   }
 
+  // Табы для водителя / пассажира
   const tabItems = isDriver
     ? [
         {
@@ -545,7 +519,7 @@ export default function MyAdsPage() {
             </span>
           ),
           children: (
-            <div style={{ padding: '8px 0' }}>
+            <div style={styles.contentArea}>
               {activeAnnouncements.length > 0 ? (
                 activeAnnouncements.map(ann => (
                   <AnnouncementWrapper
@@ -576,7 +550,7 @@ export default function MyAdsPage() {
             </Badge>
           ),
           children: (
-            <div style={{ padding: '8px 0' }}>
+            <div style={styles.contentArea}>
               {pendingBookings.length > 0 ? (
                 pendingBookings.map(booking => (
                   <BookingCardItem
@@ -605,7 +579,7 @@ export default function MyAdsPage() {
             </span>
           ),
           children: (
-            <div style={{ padding: '8px 0' }}>
+            <div style={styles.contentArea}>
               {completedAnnouncements.length > 0 ? (
                 completedAnnouncements.map(ann => (
                   <div key={ann.id} style={{ marginBottom: 16, opacity: 0.8 }}>
@@ -635,7 +609,7 @@ export default function MyAdsPage() {
             </span>
           ),
           children: (
-            <div style={{ padding: '8px 0' }}>
+            <div style={styles.contentArea}>
               {activeTrips.length > 0 ? (
                 activeTrips.map(trip => (
                   <TripCard
@@ -667,7 +641,7 @@ export default function MyAdsPage() {
             </span>
           ),
           children: (
-            <div style={{ padding: '8px 0' }}>
+            <div style={styles.contentArea}>
               {completedTrips.length > 0 ? (
                 completedTrips.map(trip => (
                   <div key={trip.id} style={{ marginBottom: 16, opacity: 0.8 }}>
@@ -688,30 +662,31 @@ export default function MyAdsPage() {
 
   return (
     <div style={styles.pageContainer}>
-      {/* Красивая шапка */}
-      <div style={styles.header}>
-        <Title level={4} style={styles.headerTitle}>
-          {isDriver ? t('create.announcementTitle') : t('create.tripTitle')}
-        </Title>
-
-        <Button
-          icon={<PlusOutlined />}
-          onClick={() => setShowCreateModal(true)}
-          style={styles.createButton}
-        >
-          {t('common.create')}
-        </Button>
-      </div>
-
-      {/* Табы */}
-      <Card style={styles.tabsCard} styles={{ body: { padding: '12px 16px' } }}>
+      {/* Плейсхолдер для фиксированных табов */}
+      <div style={styles.tabsPlaceholder} />
+      
+      {/* Фиксированный блок с табами */}
+      <div style={stickyHeaderStyle}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
-          items={tabItems}
-          style={{ marginBottom: -12 }}
+          items={tabItems.map(item => ({
+            ...item,
+            children: null, // убираем children из табов
+          }))}
+          style={{ margin: 0 }}
         />
-      </Card>
+      </div>
+
+      {/* Контент табов */}
+      <div style={{ padding: '0 0 20px 0' }}>
+        {tabItems.find(item => item.key === activeTab)?.children}
+      </div>
+
+      {/* FAB кнопка создания - СПРАВА */}
+      <FloatingActionButton
+        onClick={() => setShowCreateModal(true)}
+      />
 
       {/* Модалка создания */}
       <Modal
