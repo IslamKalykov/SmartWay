@@ -1,9 +1,20 @@
 // src/pages/auth/LoginPage.tsx
 import { useState } from 'react';
 import {
-  Card, Typography, Form, Input, Button, Space, message, Divider
+  Card,
+  Typography,
+  Form,
+  Input,
+  Button,
+  Space,
+  message,
+  Divider,
 } from 'antd';
-import { PhoneOutlined, LockOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import {
+  PhoneOutlined,
+  LockOutlined,
+  ArrowLeftOutlined,
+} from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
@@ -45,49 +56,27 @@ export default function LoginPage() {
       setLoading(true);
       const result = await verifyOtp(phone, values.code);
 
-      // DEBUG: Смотрим что пришло от бэкенда
       console.log('=== verify-otp response ===');
       console.log('Full result:', result);
-      console.log('Keys:', Object.keys(result));
 
-      // Пробуем разные варианты ключей токенов
       const accessToken = result.access || result.access_token || result.token;
       const refreshToken = result.refresh || result.refresh_token;
-
-      console.log('accessToken:', accessToken);
-      console.log('refreshToken:', refreshToken);
+      const user = result.user;
 
       if (!accessToken) {
-        console.error('No access token in response!', result);
         message.error('Сервер не вернул токен авторизации');
         return;
       }
 
-      // 1. Сохраняем токены в localStorage
-      localStorage.setItem('access_token', accessToken);
-      if (refreshToken) {
-        localStorage.setItem('refresh_token', refreshToken);
-      }
-      
-      // 2. Сохраняем user если есть
-      if (result.user) {
-        localStorage.setItem('user', JSON.stringify(result.user));
-      }
-
-      console.log('Tokens saved to localStorage');
-      console.log('localStorage access_token:', localStorage.getItem('access_token'));
-
-      // 3. Небольшая задержка чтобы localStorage успел сохраниться
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // 4. Обновляем контекст авторизации
-      await login(accessToken, refreshToken || '');
+      // ВАЖНО: login принимает объект, а не два аргумента
+      await login({
+        access: accessToken,
+        refresh: refreshToken,
+        user,
+      });
 
       message.success(t('common.success'));
-      
-      // 5. Переходим на страницу поиска
       navigate('/search', { replace: true });
-      
     } catch (error: any) {
       console.error('verify-otp error:', error);
       const detail = error?.response?.data?.detail;
@@ -121,7 +110,10 @@ export default function LoginPage() {
         }}
         styles={{ body: { padding: isMobile ? 20 : 32 } }}
       >
-        <Space size={24} style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Space
+          size={24}
+          style={{ width: '100%', display: 'flex', flexDirection: 'column' }}
+        >
           {/* Header */}
           <div style={{ textAlign: 'center', width: '100%' }}>
             <Title level={isMobile ? 4 : 3} style={{ marginBottom: 8 }}>
@@ -211,13 +203,23 @@ export default function LoginPage() {
                     prefix={<LockOutlined style={{ color: '#999' }} />}
                     placeholder={t('auth.codePlaceholder')}
                     disabled={loading}
-                    style={{ borderRadius: 8, letterSpacing: 4, textAlign: 'center' }}
+                    style={{
+                      borderRadius: 8,
+                      letterSpacing: 4,
+                      textAlign: 'center',
+                    }}
                     maxLength={6}
                   />
                 </Form.Item>
 
                 <Form.Item style={{ marginBottom: 0 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                    }}
+                  >
                     <Button
                       type="primary"
                       htmlType="submit"
