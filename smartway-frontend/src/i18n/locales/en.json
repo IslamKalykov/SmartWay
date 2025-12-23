@@ -64,8 +64,12 @@
         "sortByDate": "By date",
         "sortByPrice": "By price",
         "available": "Available",
+        "driverAnnouncements": "Driver announcements",
         "myTrips": "My trips",
-        "noMyTrips": "You don’t have any taken trips yet"
+        "noMyTrips": "You don’t have any taken trips yet",
+        "noCompletedTrips": "No completed trips yet",
+        "history": "History",
+        "noHistory": "History is empty for now"
     },
     "trip": {
         "passenger": "Passenger",
@@ -113,7 +117,14 @@
         "cancel": "Cancel",
         "pending": "Pending Confirmation",
         "confirmed": "Confirmed",
-        "rejected": "Rejected"
+        "rejected": "Rejected",
+        "status": {
+            "pending": "Pending",
+            "confirmed": "Confirmed",
+            "rejected": "Rejected",
+            "cancelled": "Cancelled",
+            "completed": "Completed"
+        }
     },
     "create": {
         "tripTitle": "Create Trip Request",

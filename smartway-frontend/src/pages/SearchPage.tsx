@@ -24,6 +24,7 @@ import {
   UserOutlined,
   PhoneOutlined,
   ClockCircleOutlined,
+  EnvironmentOutlined,
   CheckOutlined,
   CloseOutlined,
   SendOutlined,
@@ -46,6 +47,8 @@ import {
   fetchAvailableAnnouncements,
   createBooking,
   type Announcement,
+  fetchMyBookings,
+  type Booking,
 } from '../api/announcements';
 import {
   fetchAvailableTrips,
@@ -57,7 +60,7 @@ import {
 } from '../api/trips';
 import { getMyCars, type Car } from '../api/auth';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 
 // ==================== Стили ====================
@@ -689,6 +692,7 @@ export default function SearchPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [myTrips, setMyTrips] = useState<Trip[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [filters, setFilters] = useState<SearchFilters>({});
   const [activeTab, setActiveTab] = useState('available');
@@ -739,9 +743,14 @@ export default function SearchPage() {
         setTrips(tripsData);
         setMyTrips(myTripsData);
         setCars(carsData);
+        setBookings([]);
       } else {
-        const announcementsData = await fetchAvailableAnnouncements(searchFilters, lang);
+        const [announcementsData, bookingsData] = await Promise.all([
+          fetchAvailableAnnouncements(searchFilters, lang),
+          fetchMyBookings(),
+        ]);
         setAnnouncements(announcementsData);
+        setBookings(Array.isArray(bookingsData) ? bookingsData : []);
       }
     } catch (err) {
       console.error(err);
@@ -866,6 +875,15 @@ export default function SearchPage() {
   };
 
   // Фильтрация на клиенте
+  const normalizeLocationId = (value?: number | string) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
+  };
+
   const filterData = <T extends {
     from_location?: number | string;
     to_location?: number | string;
@@ -876,16 +894,12 @@ export default function SearchPage() {
   }>(items: T[]): T[] => {
     return items.filter(item => {
       if (filters.from_location) {
-        const itemFromId = typeof item.from_location === 'number'
-          ? item.from_location
-          : parseInt(item.from_location as string);
-        if (itemFromId !== filters.from_location) return false;
+        const itemFromId = normalizeLocationId(item.from_location);
+        if (itemFromId !== null && itemFromId !== filters.from_location) return false;
       }
       if (filters.to_location) {
-        const itemToId = typeof item.to_location === 'number'
-          ? item.to_location
-          : parseInt(item.to_location as string);
-        if (itemToId !== filters.to_location) return false;
+        const itemToId = normalizeLocationId(item.to_location);
+        if (itemToId !== null && itemToId !== filters.to_location) return false;
       }
       if (filters.date && item.departure_time) {
         const itemDate = new Date(item.departure_time).toISOString().split('T')[0];
@@ -900,7 +914,27 @@ export default function SearchPage() {
 
   const filteredAnnouncements = filterData(announcements);
   const filteredTrips = filterData(trips);
-  const activeMyTrips = myTrips.filter(t => ['taken', 'in_progress'].includes(t.status));
+  const filteredMyTrips = filterData(myTrips);
+  const activeMyTrips = filteredMyTrips.filter(t => ['taken', 'in_progress'].includes(t.status));
+  const completedMyTrips = filteredMyTrips.filter(t => ['completed', 'cancelled'].includes(t.status));
+
+  const filteredBookings = bookings.filter((booking) => {
+    const info = booking.announcement_info;
+    const fromId = normalizeLocationId(info?.from_location);
+    const toId = normalizeLocationId(info?.to_location);
+
+    if (filters.from_location && fromId !== null && fromId !== filters.from_location) {
+      return false;
+    }
+    if (filters.to_location && toId !== null && toId !== filters.to_location) {
+      return false;
+    }
+    if (filters.date && info?.departure_time) {
+      const bookingDate = new Date(info.departure_time).toISOString().split('T')[0];
+      if (bookingDate !== filters.date) return false;
+    }
+    return true;
+  });
 
   if (authLoading || loading) {
     return (
@@ -934,10 +968,10 @@ export default function SearchPage() {
       children: null,
     },
     {
-      key: 'announcements',
+      key: 'completed',
       label: (
-        <span style={{ fontWeight: activeTab === 'announcements' ? 600 : 400 }}>
-          🚘 {t('search.driverAnnouncements')} ({filteredAnnouncements.length})
+        <span style={{ fontWeight: activeTab === 'completed' ? 600 : 400 }}>
+          ✅ {t('tripStatus.completed')} ({completedMyTrips.length})
         </span>
       ),
       children: null,
@@ -955,7 +989,79 @@ export default function SearchPage() {
       ),
       children: null,
     },
+    {
+      key: 'history',
+      label: (
+        <span style={{ fontWeight: activeTab === 'history' ? 600 : 400 }}>
+          🕓 {t('search.history')} ({filteredBookings.length})
+        </span>
+      ),
+      children: null,
+    },
   ];
+
+  const bookingStatusConfig: Record<Booking['status'], { color: string; text: string }> = {
+    pending: { color: 'orange', text: t('booking.status.pending') },
+    confirmed: { color: 'blue', text: t('booking.status.confirmed') },
+    rejected: { color: 'red', text: t('booking.status.rejected') },
+    cancelled: { color: 'default', text: t('booking.status.cancelled') },
+    completed: { color: 'green', text: t('booking.status.completed') },
+  };
+
+  const renderBookingCard = (booking: Booking) => {
+    const info = booking.announcement_info;
+    const status = bookingStatusConfig[booking.status] || bookingStatusConfig.pending;
+    const route = info
+      ? `${info.from_location} → ${info.to_location}`
+      : t('common.noData');
+    const departureLabel = info?.departure_time
+      ? dayjs(info.departure_time).format('DD MMM, HH:mm')
+      : t('common.noData');
+
+    return (
+      <Card
+        key={booking.id}
+        style={{ marginBottom: 12, borderRadius: 12 }}
+        styles={{ body: { padding: 16 } }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <Space size={8} wrap>
+            <Tag color={status.color}>{status.text}</Tag>
+            <Tag icon={<UserOutlined />}>{booking.seats_count} {t('trip.seats')}</Tag>
+          </Space>
+          <Text type="secondary">
+            <ClockCircleOutlined /> {departureLabel}
+          </Text>
+        </div>
+
+        <Divider style={{ margin: '12px 0' }} />
+
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <EnvironmentOutlined style={{ color: '#1677ff' }} />
+            <Text strong>{route}</Text>
+          </div>
+
+          {info?.price_per_seat && (
+            <Text type="secondary">
+              {info.price_per_seat} сом / {t('trip.seat')}
+            </Text>
+          )}
+
+          <Text type="secondary">
+            {t('trip.driver')}: {info?.driver_name || '—'}
+          </Text>
+
+          {booking.message && (
+            <div style={{ padding: 10, background: '#f8f9fa', borderRadius: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>{t('booking.message')}</Text>
+              <div>"{booking.message}"</div>
+            </div>
+          )}
+        </Space>
+      </Card>
+    );
+  };
 
   // Контент табов
   const renderTabContent = () => {
@@ -991,6 +1097,21 @@ export default function SearchPage() {
           ) : (
             <Empty description={t('search.noMyTrips')} style={styles.emptyState} />
           );
+        case 'completed':
+          return completedMyTrips.length > 0 ? (
+            <div>
+              {completedMyTrips.map(trip => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  onClick={() => setSelectedMyTrip(trip)}
+                  showPassengerInfo={true}
+                />
+              ))}
+            </div>
+          ) : (
+            <Empty description={t('search.noCompletedTrips')} style={styles.emptyState} />
+          );
         case 'announcements':
           return filteredAnnouncements.length > 0 ? (
             <div>
@@ -1010,6 +1131,15 @@ export default function SearchPage() {
           return null;
       }
     } else {
+      if (activeTab === 'history') {
+        return filteredBookings.length > 0 ? (
+          <div>
+            {filteredBookings.map(renderBookingCard)}
+          </div>
+        ) : (
+          <Empty description={t('search.noHistory')} style={styles.emptyState} />
+        );
+      }
       return filteredAnnouncements.length > 0 ? (
         <div>
           {filteredAnnouncements.map(ann => (

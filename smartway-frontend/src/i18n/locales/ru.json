@@ -64,8 +64,12 @@
         "sortByDate": "По дате",
         "sortByPrice": "По цене",
         "available": "Доступные",
+        "driverAnnouncements": "Объявления водителей",
         "myTrips": "Мои поездки",
-        "noMyTrips": "У вас пока нет взятых поездок"
+        "noMyTrips": "У вас пока нет взятых поездок",
+        "noCompletedTrips": "Нет завершённых поездок",
+        "history": "История",
+        "noHistory": "История пока пуста"
     },
     "trip": {
         "passenger": "Пассажир",
@@ -123,7 +127,14 @@
         "rejected": "Бронирование отклонено",
         "accept": "Принять",
         "reject": "Отклонить",
-        "rejectConfirm": "Отклонить эту заявку?"
+        "rejectConfirm": "Отклонить эту заявку?",
+        "status": {
+            "pending": "В ожидании",
+            "confirmed": "Подтверждено",
+            "rejected": "Отклонено",
+            "cancelled": "Отменено",
+            "completed": "Завершено"
+        }
     },
     "create": {
         "tripTitle": "Создать заказ",

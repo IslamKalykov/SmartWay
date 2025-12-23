@@ -19,6 +19,12 @@ import api from '../api/client';
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
+const calculateAverageRating = (list: Review[]): number | null => {
+  if (!list || list.length === 0) return null;
+  const sum = list.reduce((acc, review) => acc + (review.rating || 0), 0);
+  return Number((sum / list.length).toFixed(1));
+};
+
 // ==================== Типы ====================
 interface CarInfo {
   id: number;
@@ -257,6 +263,9 @@ export default function UserProfilePage() {
     }
   };
 
+  const averageRating = profile?.average_rating ?? calculateAverageRating(reviews);
+  const formattedRating = averageRating !== null ? averageRating.toFixed(1) : '—';
+  
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 50 }}>
@@ -336,11 +345,11 @@ export default function UserProfilePage() {
             <div style={styles.statLabel}>{t('profile.tripsAsPassenger')}</div>
           </div>
           <div style={styles.statItem}>
-            <div style={{ ...styles.statValue, color: '#faad14' }}>
-              <StarOutlined /> {profile.average_rating?.toFixed(1) || '—'}
-            </div>
-            <div style={styles.statLabel}>{t('review.rating')}</div>
+          <div style={{ ...styles.statValue, color: '#faad14' }}>
+            <StarOutlined /> {formattedRating}
           </div>
+          <div style={styles.statLabel}>{t('review.rating')}</div>
+        </div>
           <div style={styles.statItem}>
             <div style={styles.statValue}>{reviews.length}</div>
             <div style={styles.statLabel}>{t('profile.reviewsCount')}</div>

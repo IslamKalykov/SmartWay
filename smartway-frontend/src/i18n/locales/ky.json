@@ -64,8 +64,12 @@
         "sortByDate": "Күнү боюнча",
         "sortByPrice": "Баасы боюнча",
         "available": "Жеткиликтүүлөр",
+        "driverAnnouncements": "Айдоочулардын жарыялары",
         "myTrips": "Менин сапарларым",
-        "noMyTrips": "Сизде азырынча алынган сапарлар жок"
+        "noMyTrips": "Сизде азырынча алынган сапарлар жок",
+        "noCompletedTrips": "Аяктаган сапарлар жок",
+        "history": "Тарых",
+        "noHistory": "Тарых азырынча бош"
     },
     "trip": {
         "passenger": "Жүргүнчү",
@@ -113,7 +117,14 @@
         "cancel": "Жокко чыгаруу",
         "pending": "Ырастоону күтүүдө",
         "confirmed": "Ырасталды",
-        "rejected": "Четке кагылды"
+        "rejected": "Четке кагылды",
+        "status": {
+            "pending": "Күтүүдө",
+            "confirmed": "Ырасталды",
+            "rejected": "Четке кагылды",
+            "cancelled": "Жокко чыгарылды",
+            "completed": "Аяктады"
+        }
     },
     "create": {
         "tripTitle": "Буйрутма түзүү",

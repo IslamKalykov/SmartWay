@@ -23,6 +23,12 @@ import type { Review } from '../../api/trips';
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
+const calculateAverageRating = (list: Review[]): number | null => {
+  if (!list || list.length === 0) return null;
+  const sum = list.reduce((acc, review) => acc + (review.rating || 0), 0);
+  return Number((sum / list.length).toFixed(1));
+};
+
 export default function ProfilePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -145,6 +151,9 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  const averageRating = profile?.average_rating ?? calculateAverageRating(reviews);
+  const formattedRating = averageRating !== null ? averageRating.toFixed(1) : '—';
 
   // Базовые табы
   const tabItems = [
@@ -387,7 +396,7 @@ export default function ProfilePage() {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 20, fontWeight: 600, color: '#faad14' }}>
-              <StarOutlined /> {profile?.average_rating?.toFixed(1) || '—'}
+              <StarOutlined /> {formattedRating}
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
               {t('review.rating')}
