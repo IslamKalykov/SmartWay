@@ -34,7 +34,9 @@ export interface Trip {
   with_child?: boolean;
   prefer_verified_driver?: boolean;
   extra_rules?: string;
-
+  my_role?: 'passenger' | 'driver' | null;
+  has_review_from_me?: boolean;
+  
   created_at: string;
   updated_at?: string;
 }

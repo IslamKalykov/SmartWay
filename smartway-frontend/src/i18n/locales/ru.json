@@ -191,12 +191,18 @@
     },
     "review": {
         "leaveReview": "Оставить отзыв",
+        "write": "Написать отзыв",
         "rating": "Оценка",
+        "ratingRequired": "Поставьте оценку",
         "comment": "Комментарий",
+        "text": "Текст отзыва",
+        "textPlaceholder": "Поделитесь впечатлениями о поездке...",
         "wasOnTime": "Вовремя",
         "wasPolite": "Вежливый",
         "carWasClean": "Чистый салон",
-        "submit": "Отправить отзыв"
+        "submit": "Отправить отзыв",
+        "submitted": "Отзыв отправлен",
+        "alreadyLeft": "Отзыв оставлен"
     },
     "common": {
         "loading": "Загрузка...",

@@ -15,7 +15,10 @@ import {
   Button,
   Divider,
   Avatar,
-  Tooltip,
+  Card,
+  DatePicker,
+  Switch,
+  Space,
 } from 'antd';
 import {
   UserOutlined,
@@ -25,12 +28,16 @@ import {
   CloseOutlined,
   SendOutlined,
   SafetyCertificateOutlined,
+  FilterOutlined,
+  SearchOutlined,
+  ClearOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 
 import { useAuth } from '../auth/AuthContext';
-import SearchFilter from '../components/SearchFilter';
+import { useIsMobile } from '../hooks/useIsMobile';
+import LocationSelect from '../components/LocationSelect';
 import type { SearchFilters } from '../components/SearchFilter';
 import TripCard from '../components/TripCard';
 import AnnouncementCard from '../components/AnnouncementCard';
@@ -54,7 +61,74 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 // ==================== Стили ====================
-const styles = {
+const styles: { [key: string]: React.CSSProperties } = {
+  pageContainer: {
+    padding: 0,
+    paddingBottom: 100,
+    position: 'relative',
+    minHeight: '100%',
+  },
+  
+  tabsPlaceholder: {
+    height: 56,
+  },
+  
+  contentArea: {
+    paddingTop: 16,
+  },
+  
+  emptyState: {
+    padding: '40px 0',
+  },
+  
+  // FAB кнопка фильтра
+  fabButton: {
+    position: 'fixed',
+    left: 'auto',
+    right: 20,
+    bottom: 80,
+    width: 56,
+    height: 56,
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    border: 'none',
+    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    zIndex: 100,
+  },
+  
+  fabButtonHover: {
+    transform: 'scale(1.1)',
+    boxShadow: '0 6px 25px rgba(102, 126, 234, 0.5)',
+  },
+  
+  fabIcon: {
+    fontSize: 24,
+    color: '#fff',
+  },
+  
+  // Индикатор активных фильтров
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: '50%',
+    background: '#ff4d4f',
+    color: '#fff',
+    fontSize: 12,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 600,
+  },
+  
+  // Модалка деталей поездки
   routeBlock: {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     borderRadius: 12,
@@ -191,6 +265,178 @@ const styles = {
   },
 };
 
+// ==================== FAB компонент ====================
+interface FABProps {
+  onClick: () => void;
+  activeFiltersCount?: number;
+}
+
+function FilterFAB({ onClick, activeFiltersCount = 0 }: FABProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        ...styles.fabButton,
+        ...(isHovered ? styles.fabButtonHover : {}),
+      }}
+      aria-label="Фильтры"
+    >
+      <FilterOutlined style={styles.fabIcon} />
+      {activeFiltersCount > 0 && (
+        <span style={styles.filterBadge}>{activeFiltersCount}</span>
+      )}
+    </button>
+  );
+}
+
+// ==================== Компонент модалки фильтров ====================
+interface FilterModalProps {
+  visible: boolean;
+  onClose: () => void;
+  filters: SearchFilters;
+  onApply: (filters: SearchFilters) => void;
+  onClear: () => void;
+  loading?: boolean;
+  t: (key: string) => string;
+}
+
+function FilterModal({ visible, onClose, filters, onApply, onClear, loading, t }: FilterModalProps) {
+  const [localFilters, setLocalFilters] = useState<SearchFilters>(filters);
+
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters, visible]);
+
+  const updateFilter = (key: keyof SearchFilters, value: any) => {
+    setLocalFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleApply = () => {
+    onApply(localFilters);
+    onClose();
+  };
+
+  const handleClear = () => {
+    setLocalFilters({});
+    onClear();
+    onClose();
+  };
+
+  return (
+    <Modal
+      open={visible}
+      onCancel={onClose}
+      footer={null}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FilterOutlined />
+          {t('search.filters')}
+        </div>
+      }
+      styles={{ content: { borderRadius: 16 } }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Откуда */}
+        <div>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            {t('search.from')}
+          </Text>
+          <LocationSelect
+            value={localFilters.from_location}
+            onChange={(id) => updateFilter('from_location', id)}
+            placeholder={t('search.fromPlaceholder')}
+          />
+        </div>
+
+        {/* Куда */}
+        <div>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            {t('search.to')}
+          </Text>
+          <LocationSelect
+            value={localFilters.to_location}
+            onChange={(id) => updateFilter('to_location', id)}
+            placeholder={t('search.toPlaceholder')}
+            excludeId={localFilters.from_location}
+          />
+        </div>
+
+        {/* Дата */}
+        <div>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            {t('search.date')}
+          </Text>
+          <DatePicker
+            value={localFilters.date ? dayjs(localFilters.date) : undefined}
+            onChange={(date) => updateFilter('date', date?.format('YYYY-MM-DD'))}
+            style={{ width: '100%' }}
+            placeholder={t('search.date')}
+            disabledDate={(current) => current && current < dayjs().startOf('day')}
+          />
+        </div>
+
+        <Divider style={{ margin: '8px 0' }} />
+
+        {/* Дополнительные фильтры */}
+        <div>
+          <Text strong style={{ marginBottom: 12, display: 'block' }}>
+            {t('search.conditions')}
+          </Text>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>🚬 {t('rideOptions.allowSmoking')}</span>
+              <Switch
+                checked={localFilters.allow_smoking}
+                onChange={(v) => updateFilter('allow_smoking', v || undefined)}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>🐾 {t('rideOptions.allowPets')}</span>
+              <Switch
+                checked={localFilters.allow_pets}
+                onChange={(v) => updateFilter('allow_pets', v || undefined)}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>🧳 {t('rideOptions.allowBigLuggage')}</span>
+              <Switch
+                checked={localFilters.allow_big_luggage}
+                onChange={(v) => updateFilter('allow_big_luggage', v || undefined)}
+              />
+            </div>
+          </Space>
+        </div>
+
+        <Divider style={{ margin: '8px 0' }} />
+
+        {/* Кнопки */}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <Button
+            icon={<ClearOutlined />}
+            onClick={handleClear}
+            style={{ flex: 1 }}
+          >
+            {t('search.clearFilters')}
+          </Button>
+          <Button
+            type="primary"
+            icon={<SearchOutlined />}
+            onClick={handleApply}
+            loading={loading}
+            style={{ flex: 1 }}
+          >
+            {t('search.searchBtn')}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ==================== Компонент детальной модалки поездки ====================
 interface TripDetailModalProps {
   trip: Trip | null;
@@ -287,10 +533,7 @@ function TripDetailModal({
               )}
             </>
           ) : (
-            <Tag
-              color="orange"
-              style={{ fontSize: 14, padding: '4px 12px', margin: 0 }}
-            >
+            <Tag color="orange" style={{ fontSize: 14, padding: '4px 12px', margin: 0 }}>
               {t('trip.negotiable')}
             </Tag>
           )}
@@ -323,24 +566,20 @@ function TripDetailModal({
           </div>
           <div style={styles.contactButtons}>
             {(telegramUsername || cleanPhone) && (
-              
-                <Button
-                  type="primary"
-                  icon={<SendOutlined />}
-                  onClick={handleTelegram}
-                  style={{ ...styles.contactBtn, ...styles.telegramBtn }}
-                />
-              
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                onClick={handleTelegram}
+                style={{ ...styles.contactBtn, ...styles.telegramBtn }}
+              />
             )}
             {cleanPhone && (
-              
-                <Button
-                  type="primary"
-                  icon={<PhoneOutlined />}
-                  onClick={handleCall}
-                  style={{ ...styles.contactBtn, ...styles.phoneBtn }}
-                />
-              
+              <Button
+                type="primary"
+                icon={<PhoneOutlined />}
+                onClick={handleCall}
+                style={{ ...styles.contactBtn, ...styles.phoneBtn }}
+              />
             )}
           </div>
         </div>
@@ -366,9 +605,7 @@ function TripDetailModal({
               <Tag style={styles.conditionTag}>🧳 {t('filter.luggage')}</Tag>
             )}
             {trip.baggage_help && (
-              <Tag style={styles.conditionTag}>
-                💪 {t('filter.baggageHelp')}
-              </Tag>
+              <Tag style={styles.conditionTag}>💪 {t('filter.baggageHelp')}</Tag>
             )}
             {trip.with_child && (
               <Tag style={styles.conditionTag}>👶 {t('filter.withChild')}</Tag>
@@ -405,11 +642,7 @@ function TripDetailModal({
         )}
 
         {trip.status === 'open' && !hasCar && !isMyTrip && (
-          <Button
-            size="large"
-            disabled
-            style={{ ...styles.dangerBtn, flex: 1 }}
-          >
+          <Button size="large" disabled style={{ ...styles.dangerBtn, flex: 1 }}>
             {t('trip.addCarFirst')}
           </Button>
         )}
@@ -448,6 +681,7 @@ function TripDetailModal({
 export default function SearchPage() {
   const { t, i18n } = useTranslation();
   const { user, isAuth, loading: authLoading } = useAuth();
+  const isMobile = useIsMobile(768);
   const isDriver = !!user?.is_driver;
 
   const [loading, setLoading] = useState(true);
@@ -458,113 +692,94 @@ export default function SearchPage() {
   const [cars, setCars] = useState<Car[]>([]);
   const [filters, setFilters] = useState<SearchFilters>({});
   const [activeTab, setActiveTab] = useState('available');
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   // Модальные окна
-  const [selectedAnnouncement, setSelectedAnnouncement] =
-    useState<Announcement | null>(null);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [selectedMyTrip, setSelectedMyTrip] = useState<Trip | null>(null);
   const [bookingSeats, setBookingSeats] = useState(1);
   const [bookingMessage, setBookingMessage] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  const loadData = async (
-    searchFilters?: SearchFilters,
-    roleIsDriver: boolean = isDriver,
-  ) => {
-    setError(null);
-    const currentFilters = searchFilters || filters;
+  // Адаптивные стили для фиксированного header
+  const stickyHeaderStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: isMobile ? 56 : 64,
+    left: isMobile ? 0 : '50%',
+    right: isMobile ? 0 : 'auto',
+    transform: isMobile ? 'none' : 'translateX(-50%)',
+    width: isMobile ? '100%' : '100%',
+    maxWidth: isMobile ? '100%' : 968,
+    zIndex: 50,
+    background: '#fff',
+    padding: '8px 16px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+  };
+
+  const loadData = async (searchFilters?: SearchFilters) => {
+    if (!isAuth) {
+      setLoading(false);
+      setError(t('errors.authRequired'));
+      return;
+    }
 
     try {
       setLoading(true);
+      setError(null);
 
-      const lng = i18n.language?.slice(0, 2);
-      const annPromise = fetchAvailableAnnouncements(currentFilters, lng);
+      const lang = i18n.language?.slice(0, 2) || 'ru';
 
-      if (roleIsDriver) {
-        const [annData, tripsRes, carsRes, myTripsRes] = await Promise.all([
-          annPromise,
-          fetchAvailableTrips(currentFilters, lng),
+      if (isDriver) {
+        const [tripsData, myTripsData, carsData] = await Promise.all([
+          fetchAvailableTrips(searchFilters, lang),
+          fetchMyDriverTrips(lang),
           getMyCars(),
-          fetchMyDriverTrips(lng),
         ]);
-
-        setAnnouncements(annData || []);
-        setTrips(tripsRes || []);
-        setCars(carsRes || []);
-        setMyTrips(myTripsRes || []);
+        setTrips(tripsData);
+        setMyTrips(myTripsData);
+        setCars(carsData);
       } else {
-        const annData = await annPromise;
-        setAnnouncements(annData || []);
+        const announcementsData = await fetchAvailableAnnouncements(searchFilters, lang);
+        setAnnouncements(announcementsData);
       }
-    } catch (err: any) {
-      console.error('Load data error:', err);
-      setError(err?.message || 'Ошибка загрузки данных');
+    } catch (err) {
+      console.error(err);
+      setError(t('errors.serverError'));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (authLoading) return;
+    loadData();
+  }, [isAuth, isDriver, i18n.language]);
 
-    if (!isAuth) {
-      setLoading(false);
-      setError('Требуется авторизация');
-      return;
-    }
-
-    loadData(undefined, !!user?.is_driver);
-  }, [authLoading, isAuth, user?.is_driver, i18n.language]);
-
-  const handleSearch = async (newFilters: SearchFilters) => {
+  const handleSearch = (newFilters: SearchFilters) => {
     setFilters(newFilters);
-    await loadData(newFilters, !!user?.is_driver);
+    loadData(newFilters);
   };
 
-  // === Действия для пассажира ===
-  const handleBookAnnouncement = async () => {
-    if (!selectedAnnouncement) return;
-
-    try {
-      setActionLoading(true);
-      await createBooking({
-        announcement: selectedAnnouncement.id,
-        seats_count: bookingSeats,
-        message: bookingMessage,
-      });
-      message.success(t('common.success'));
-      setSelectedAnnouncement(null);
-      setBookingSeats(1);
-      setBookingMessage('');
-      loadData();
-    } catch (err: any) {
-      message.error(err?.response?.data?.detail || t('errors.serverError'));
-    } finally {
-      setActionLoading(false);
-    }
+  const handleClearFilters = () => {
+    setFilters({});
+    loadData({});
   };
+
+  // Подсчёт активных фильтров
+  const activeFiltersCount = Object.values(filters).filter(v => v !== undefined && v !== null).length;
 
   // === Действия для водителя ===
   const handleTakeTrip = async () => {
-    if (!selectedTrip || cars.length === 0) return;
+    if (!selectedTrip) return;
 
     try {
       setActionLoading(true);
-
-      const updatedTrip = await takeTrip(selectedTrip.id, cars[0].id);
-
+      const updatedTrip = await takeTrip(selectedTrip.id);
       message.success(t('trip.taken'));
 
+      setMyTrips(prev => [...prev, updatedTrip]);
       setTrips(prev => prev.filter(trip => trip.id !== updatedTrip.id));
-
-      setMyTrips(prev => {
-        const without = prev.filter(trip => trip.id !== updatedTrip.id);
-        return [...without, updatedTrip];
-      });
-
       setSelectedTrip(null);
-
       loadData();
     } catch (err: any) {
       message.error(err?.response?.data?.detail || t('errors.serverError'));
@@ -585,24 +800,14 @@ export default function SearchPage() {
       onOk: async () => {
         try {
           setActionLoading(true);
-
           const updatedTrip = await releaseTrip(selectedMyTrip.id);
-
           message.success(t('trip.released'));
 
-          setMyTrips(prev =>
-            prev.filter(trip => trip.id !== updatedTrip.id),
-          );
-
+          setMyTrips(prev => prev.filter(trip => trip.id !== updatedTrip.id));
           if (updatedTrip.status === 'open') {
-            setTrips(prev => {
-              const without = prev.filter(trip => trip.id !== updatedTrip.id);
-              return [...without, updatedTrip];
-            });
+            setTrips(prev => [...prev.filter(trip => trip.id !== updatedTrip.id), updatedTrip]);
           }
-
           setSelectedMyTrip(null);
-
           loadData();
         } catch (err: any) {
           message.error(err?.response?.data?.detail || t('errors.serverError'));
@@ -623,17 +828,10 @@ export default function SearchPage() {
       onOk: async () => {
         try {
           setActionLoading(true);
-
-          const updatedTrip = await finishTrip(selectedMyTrip.id);
-
+          await finishTrip(selectedMyTrip.id);
           message.success(t('trip.finished'));
-
-          setMyTrips(prev =>
-            prev.filter(trip => trip.id !== updatedTrip.id),
-          );
-
+          setMyTrips(prev => prev.filter(trip => trip.id !== selectedMyTrip.id));
           setSelectedMyTrip(null);
-
           loadData();
         } catch (err: any) {
           message.error(err?.response?.data?.detail || t('errors.serverError'));
@@ -644,61 +842,65 @@ export default function SearchPage() {
     });
   };
 
+  // === Действия для пассажира ===
+  const handleBookAnnouncement = async () => {
+    if (!selectedAnnouncement) return;
+
+    try {
+      setActionLoading(true);
+      await createBooking({
+        announcement: selectedAnnouncement.id,
+        seats_count: bookingSeats,
+        message: bookingMessage,
+      });
+      message.success(t('booking.sent'));
+      setSelectedAnnouncement(null);
+      setBookingSeats(1);
+      setBookingMessage('');
+      loadData();
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || t('errors.serverError'));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Фильтрация на клиенте
-  const filterData = <
-    T extends {
-      from_location?: number | string;
-      to_location?: number | string;
-      departure_time?: string;
-      allow_smoking?: boolean;
-      allow_pets?: boolean;
-      allow_big_luggage?: boolean;
-    },
-  >(items: T[]): T[] => {
+  const filterData = <T extends {
+    from_location?: number | string;
+    to_location?: number | string;
+    departure_time?: string;
+    allow_smoking?: boolean;
+    allow_pets?: boolean;
+    allow_big_luggage?: boolean;
+  }>(items: T[]): T[] => {
     return items.filter(item => {
       if (filters.from_location) {
-        const itemFromId =
-          typeof item.from_location === 'number'
-            ? item.from_location
-            : parseInt(item.from_location as string);
+        const itemFromId = typeof item.from_location === 'number'
+          ? item.from_location
+          : parseInt(item.from_location as string);
         if (itemFromId !== filters.from_location) return false;
       }
-
       if (filters.to_location) {
-        const itemToId =
-          typeof item.to_location === 'number'
-            ? item.to_location
-            : parseInt(item.to_location as string);
+        const itemToId = typeof item.to_location === 'number'
+          ? item.to_location
+          : parseInt(item.to_location as string);
         if (itemToId !== filters.to_location) return false;
       }
-
       if (filters.date && item.departure_time) {
-        const itemDate = new Date(item.departure_time)
-          .toISOString()
-          .split('T')[0];
+        const itemDate = new Date(item.departure_time).toISOString().split('T')[0];
         if (itemDate !== filters.date) return false;
       }
-
       if (filters.allow_smoking && !item.allow_smoking) return false;
       if (filters.allow_pets && !item.allow_pets) return false;
       if (filters.allow_big_luggage && !item.allow_big_luggage) return false;
-
       return true;
     });
   };
 
   const filteredAnnouncements = filterData(announcements);
   const filteredTrips = filterData(trips);
-  const activeMyTrips = myTrips.filter(t =>
-    ['taken', 'in_progress'].includes(t.status),
-  );
-
-  console.log('[SearchPage]', {
-    authLoading,
-    isAuth,
-    user,
-    isDriver,
-  });
+  const activeMyTrips = myTrips.filter(t => ['taken', 'in_progress'].includes(t.status));
 
   if (authLoading || loading) {
     return (
@@ -712,96 +914,103 @@ export default function SearchPage() {
   }
 
   // Табы для водителя
-  const driverTabs = [
+  const driverTabItems = [
     {
       key: 'available',
-      label: `📋 ${t('search.available')} (${filteredTrips.length})`,
-      children:
-        filteredTrips.length > 0 ? (
-          <div>
-            {filteredTrips.map(trip => (
-              <TripCard
-                key={trip.id}
-                trip={trip}
-                onClick={() => setSelectedTrip(trip)}
-                showPassengerInfo={true}
-              />
-            ))}
-          </div>
-        ) : (
-          <Empty description={t('search.noResults')} />
-        ),
+      label: (
+        <span style={{ fontWeight: activeTab === 'available' ? 600 : 400 }}>
+          📋 {t('search.available')} ({filteredTrips.length})
+        </span>
+      ),
+      children: null,
     },
     {
       key: 'my',
-      label: `🚗 ${t('search.myTrips')} (${activeMyTrips.length})`,
-      children:
-        activeMyTrips.length > 0 ? (
-          <div>
-            {activeMyTrips.map(trip => (
-              <TripCard
-                key={trip.id}
-                trip={trip}
-                onClick={() => setSelectedMyTrip(trip)}
-                showPassengerInfo={true}
-              />
-            ))}
-          </div>
-        ) : (
-          <Empty description={t('search.noMyTrips')} />
-        ),
+      label: (
+        <span style={{ fontWeight: activeTab === 'my' ? 600 : 400 }}>
+          🚗 {t('search.myTrips')} ({activeMyTrips.length})
+        </span>
+      ),
+      children: null,
     },
     {
       key: 'announcements',
-      label: `🚘 ${t('search.driverAnnouncements')} (${filteredAnnouncements.length})`,
-      children:
-        filteredAnnouncements.length > 0 ? (
-          <div>
-            {filteredAnnouncements.map(ann => (
-              <AnnouncementCard
-                key={ann.id}
-                announcement={ann}
-                onClick={() => setSelectedAnnouncement(ann)}
-                showDriverInfo={true}
-              />
-            ))}
-          </div>
-        ) : (
-          <Empty description={t('search.noResults')} />
-        ),
+      label: (
+        <span style={{ fontWeight: activeTab === 'announcements' ? 600 : 400 }}>
+          🚘 {t('search.driverAnnouncements')} ({filteredAnnouncements.length})
+        </span>
+      ),
+      children: null,
     },
   ];
 
-  return (
-    <div>
-      <Title level={4} style={{ marginBottom: 16 }}>
-        {isDriver ? t('search.titleDriver') : t('search.title')}
-      </Title>
+  // Табы для пассажира
+  const passengerTabItems = [
+    {
+      key: 'available',
+      label: (
+        <span style={{ fontWeight: activeTab === 'available' ? 600 : 400 }}>
+          🚘 {t('search.driverAnnouncements')} ({filteredAnnouncements.length})
+        </span>
+      ),
+      children: null,
+    },
+  ];
 
-      {error && (
-        <Alert
-          message={error}
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-          closable
-          onClose={() => setError(null)}
-        />
-      )}
-
-      <SearchFilter
-        onSearch={handleSearch}
-        loading={loading}
-        showRideOptions={true}
-      />
-
-      {isDriver ? (
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={driverTabs}
-        />
-      ) : filteredAnnouncements.length > 0 ? (
+  // Контент табов
+  const renderTabContent = () => {
+    if (isDriver) {
+      switch (activeTab) {
+        case 'available':
+          return filteredTrips.length > 0 ? (
+            <div>
+              {filteredTrips.map(trip => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  onClick={() => setSelectedTrip(trip)}
+                  showPassengerInfo={true}
+                />
+              ))}
+            </div>
+          ) : (
+            <Empty description={t('search.noResults')} style={styles.emptyState} />
+          );
+        case 'my':
+          return activeMyTrips.length > 0 ? (
+            <div>
+              {activeMyTrips.map(trip => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  onClick={() => setSelectedMyTrip(trip)}
+                  showPassengerInfo={true}
+                />
+              ))}
+            </div>
+          ) : (
+            <Empty description={t('search.noMyTrips')} style={styles.emptyState} />
+          );
+        case 'announcements':
+          return filteredAnnouncements.length > 0 ? (
+            <div>
+              {filteredAnnouncements.map(ann => (
+                <AnnouncementCard
+                  key={ann.id}
+                  announcement={ann}
+                  onClick={() => setSelectedAnnouncement(ann)}
+                  showDriverInfo={true}
+                />
+              ))}
+            </div>
+          ) : (
+            <Empty description={t('search.noResults')} style={styles.emptyState} />
+          );
+        default:
+          return null;
+      }
+    } else {
+      return filteredAnnouncements.length > 0 ? (
         <div>
           {filteredAnnouncements.map(ann => (
             <AnnouncementCard
@@ -822,8 +1031,60 @@ export default function SearchPage() {
               <Text type="secondary">{t('search.noResultsHint')}</Text>
             </span>
           }
+          style={styles.emptyState}
+        />
+      );
+    }
+  };
+
+  return (
+    <div style={styles.pageContainer}>
+      {/* Плейсхолдер для фиксированных табов */}
+      <div style={styles.tabsPlaceholder} />
+
+      {/* Фиксированные табы */}
+      <div style={stickyHeaderStyle}>
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={isDriver ? driverTabItems : passengerTabItems}
+          style={{ margin: 0 }}
+        />
+      </div>
+
+      {/* Ошибка */}
+      {error && (
+        <Alert
+          message={error}
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          closable
+          onClose={() => setError(null)}
         />
       )}
+
+      {/* Контент табов */}
+      <div style={styles.contentArea}>
+        {renderTabContent()}
+      </div>
+
+      {/* FAB кнопка фильтра */}
+      <FilterFAB
+        onClick={() => setShowFilterModal(true)}
+        activeFiltersCount={activeFiltersCount}
+      />
+
+      {/* Модалка фильтров */}
+      <FilterModal
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        filters={filters}
+        onApply={handleSearch}
+        onClear={handleClearFilters}
+        loading={loading}
+        t={t}
+      />
 
       {/* Модалка детали поездки (доступные) */}
       <TripDetailModal
@@ -865,11 +1126,9 @@ export default function SearchPage() {
           <div>
             <div style={{ marginBottom: 16 }}>
               <Text strong style={{ fontSize: 16 }}>
-                {selectedAnnouncement.from_location_display ||
-                  selectedAnnouncement.from_location}
+                {selectedAnnouncement.from_location_display || selectedAnnouncement.from_location}
                 {' → '}
-                {selectedAnnouncement.to_location_display ||
-                  selectedAnnouncement.to_location}
+                {selectedAnnouncement.to_location_display || selectedAnnouncement.to_location}
               </Text>
               <br />
               <Text type="secondary">

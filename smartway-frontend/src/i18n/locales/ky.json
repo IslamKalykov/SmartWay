@@ -182,12 +182,18 @@
     },
     "review": {
         "leaveReview": "Пикир калтыруу",
+        "write": "Пикир жазуу",
         "rating": "Баа",
+        "ratingRequired": "Сураныч, баа бериңиз",
         "comment": "Комментарий",
+        "text": "Пикир тексти",
+        "textPlaceholder": "Саякат жөнүндө таасирлериңизди бөлүшүңүз...",
         "wasOnTime": "Убагында",
         "wasPolite": "Сылык",
         "carWasClean": "Таза унаа",
-        "submit": "Пикир жөнөтүү"
+        "submit": "Пикир жөнөтүү",
+        "submitted": "Пикир жөнөтүлдү",
+        "alreadyLeft": "Пикир калтырылган"
     },
     "common": {
         "loading": "Жүктөлүүдө...",

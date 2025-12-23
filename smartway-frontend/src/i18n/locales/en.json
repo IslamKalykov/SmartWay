@@ -182,12 +182,18 @@
     },
     "review": {
         "leaveReview": "Leave Review",
+        "write": "Write a review",
         "rating": "Rating",
+        "ratingRequired": "Please rate the trip",
         "comment": "Comment",
+        "text": "Review text",
+        "textPlaceholder": "Share your experience about the trip...",
         "wasOnTime": "On Time",
         "wasPolite": "Polite",
         "carWasClean": "Clean Car",
-        "submit": "Submit Review"
+        "submit": "Submit Review",
+        "submitted": "Review submitted",
+        "alreadyLeft": "Review already left"
     },
     "common": {
         "loading": "Loading...",

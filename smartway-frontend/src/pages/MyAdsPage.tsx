@@ -1,7 +1,22 @@
 // src/pages/MyAdsPage.tsx
 import { useState, useEffect } from 'react';
 import {
-  Card, Typography, Button, Tabs, Empty, Spin, Modal, message, Badge, Space, Avatar, Tag
+  Card,
+  Typography,
+  Button,
+  Tabs,
+  Empty,
+  Spin,
+  Modal,
+  message,
+  Badge,
+  Space,
+  Avatar,
+  Tag,
+  Rate,
+  Input,
+  Checkbox,
+  Divider,
 } from 'antd';
 import {
   PlusOutlined, CheckCircleOutlined, CloseCircleOutlined,
@@ -33,10 +48,12 @@ import {
 import {
   fetchMyTrips,
   cancelTrip,
+  createReview,
   type Trip,
 } from '../api/trips';
 
 const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 // ==================== Стили ====================
 const styles: { [key: string]: React.CSSProperties } = {
@@ -398,6 +415,15 @@ export default function MyAdsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
+  const [reviewTrip, setReviewTrip] = useState<Trip | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewFlags, setReviewFlags] = useState({
+    was_on_time: false,
+    was_polite: false,
+    car_was_clean: false,
+  });
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   // Адаптивные стили для фиксированного header
   const stickyHeaderStyle: React.CSSProperties = {
@@ -451,6 +477,43 @@ export default function MyAdsPage() {
     }
   };
 
+  // === Отзывы ===
+  const handleOpenReview = (trip: Trip) => {
+    setReviewTrip(trip);
+    setReviewRating(5);
+    setReviewText('');
+    setReviewFlags({
+      was_on_time: false,
+      was_polite: false,
+      car_was_clean: false,
+    });
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTrip) return;
+    if (!reviewRating) {
+      message.error(t('review.ratingRequired'));
+      return;
+    }
+    try {
+      setReviewLoading(true);
+      await createReview({
+        trip: reviewTrip.id,
+        rating: reviewRating,
+        text: reviewText,
+        ...reviewFlags,
+      });
+      message.success(t('review.submitted'));
+      setReviewTrip(null);
+      setReviewText('');
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
   // === Действия для водителя ===
   const handleCancelAnnouncement = async (announcementId: number) => {
     try {
@@ -497,8 +560,101 @@ export default function MyAdsPage() {
   const completedAnnouncements = announcements.filter(a => ['completed', 'cancelled'].includes(a.status));
   const pendingBookings = bookings.filter(b => b.status === 'pending');
 
-  const activeTrips = trips.filter(t => ['open', 'assigned'].includes(t.status));
+  const activeTrips = trips.filter(t => ['open', 'taken', 'in_progress'].includes(t.status));
   const completedTrips = trips.filter(t => ['completed', 'cancelled'].includes(t.status));
+
+  const renderCompletedTripCard = (trip: Trip) => {
+    const departureLabel = dayjs(trip.departure_time).format('DD MMM, HH:mm');
+    const roleLabel =
+      trip.my_role === 'driver'
+        ? t('trip.driver')
+        : trip.my_role === 'passenger'
+        ? t('trip.passenger')
+        : t('tripStatus.completed');
+    const counterpartLabel = trip.my_role === 'driver' ? t('trip.passenger') : t('trip.driver');
+    const counterpartName = trip.my_role === 'driver' ? trip.passenger_name : trip.driver_name;
+    const phone = trip.my_role === 'driver' ? trip.passenger_phone : trip.driver_phone || trip.contact_phone;
+    const cleanPhone = phone?.replace(/\\D/g, '');
+    const canReview = trip.status === 'completed' && !trip.has_review_from_me && !!(trip.driver || trip.passenger);
+    const alreadyReviewed = trip.has_review_from_me;
+    const statusText = t(`tripStatus.${trip.status}`, { defaultValue: trip.status });
+
+    return (
+      <Card
+        key={trip.id}
+        style={{ marginBottom: 12, borderRadius: 14, border: '1px solid #f0f0f0' }}
+        styles={{ body: { padding: 16 } }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <Space size={8}>
+            <Tag color={trip.status === 'completed' ? 'green' : 'red'}>{statusText}</Tag>
+            <Tag color="blue">{roleLabel}</Tag>
+            {alreadyReviewed && (
+              <Tag color="purple" icon={<CheckCircleOutlined />}>
+                {t('review.alreadyLeft')}
+              </Tag>
+            )}
+          </Space>
+          <Text type="secondary">{departureLabel}</Text>
+        </div>
+
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Space>
+            <EnvironmentOutlined style={{ color: '#1677ff' }} />
+            <Text strong>
+              {trip.from_location_display || trip.from_location} → {trip.to_location_display || trip.to_location}
+            </Text>
+          </Space>
+
+          <Space size={12} wrap>
+            <Tag icon={<UserOutlined />}>{trip.passengers_count} {trip.passengers_count === 1 ? t('trip.seat') : t('trip.seats')}</Tag>
+            {trip.price ? (
+              <Tag color="green" icon={<DollarOutlined />}>
+                {trip.price} сом
+              </Tag>
+            ) : (
+              <Tag color="orange">{t('trip.negotiable')}</Tag>
+            )}
+          </Space>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Text type="secondary">
+              {counterpartLabel}: {counterpartName || t('common.noData')}
+            </Text>
+            {phone && (
+              <Button
+                size="small"
+                icon={<PhoneOutlined />}
+                onClick={() => cleanPhone && window.open(`tel:+${cleanPhone}`)}
+              >
+                {t('trip.call')}
+              </Button>
+            )}
+          </div>
+
+          {trip.comment && (
+            <Text type="secondary" style={{ display: 'block' }}>
+              {trip.comment}
+            </Text>
+          )}
+        </div>
+
+        <Divider style={{ margin: '12px 0' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          {canReview ? (
+            <Button type="primary" icon={<SendOutlined />} onClick={() => handleOpenReview(trip)}>
+              {t('review.leaveReview')}
+            </Button>
+          ) : (
+            <Text type="secondary">
+              {alreadyReviewed ? t('review.alreadyLeft') : t('tripStatus.completed')}
+            </Text>
+          )}
+        </div>
+      </Card>
+    );
+  };
 
   if (loading) {
     return (
@@ -643,11 +799,7 @@ export default function MyAdsPage() {
           children: (
             <div style={styles.contentArea}>
               {completedTrips.length > 0 ? (
-                completedTrips.map(trip => (
-                  <div key={trip.id} style={{ marginBottom: 16, opacity: 0.8 }}>
-                    <TripCard trip={trip} />
-                  </div>
-                ))
+                completedTrips.map(trip => renderCompletedTripCard(trip))
               ) : (
                 <Empty 
                   description={t('common.noData')} 
@@ -717,6 +869,67 @@ export default function MyAdsPage() {
             }}
             onCancel={() => setShowCreateModal(false)}
           />
+        )}
+      </Modal>
+
+      {/* Модалка отзыва по завершённой поездке */}
+      <Modal
+        title={t('review.leaveReview')}
+        open={!!reviewTrip}
+        onCancel={() => setReviewTrip(null)}
+        onOk={handleSubmitReview}
+        okText={t('review.submit')}
+        cancelText={t('common.cancel')}
+        okButtonProps={{ loading: reviewLoading }}
+        destroyOnClose
+      >
+        {reviewTrip && (
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Text type="secondary">
+              {reviewTrip.from_location_display || reviewTrip.from_location} →{' '}
+              {reviewTrip.to_location_display || reviewTrip.to_location}
+            </Text>
+
+            <div>
+              <Text strong>{t('review.rating')}</Text>
+              <div>
+                <Rate value={reviewRating} onChange={setReviewRating} />
+              </div>
+            </div>
+
+            <div>
+              <Text strong>{t('review.comment')}</Text>
+              <TextArea
+                rows={4}
+                value={reviewText}
+                onChange={e => setReviewText(e.target.value)}
+                placeholder={t('review.textPlaceholder')}
+                maxLength={500}
+                showCount
+              />
+            </div>
+
+            <Space direction="vertical">
+              <Checkbox
+                checked={reviewFlags.was_on_time}
+                onChange={e => setReviewFlags(prev => ({ ...prev, was_on_time: e.target.checked }))}
+              >
+                {t('review.wasOnTime')}
+              </Checkbox>
+              <Checkbox
+                checked={reviewFlags.was_polite}
+                onChange={e => setReviewFlags(prev => ({ ...prev, was_polite: e.target.checked }))}
+              >
+                {t('review.wasPolite')}
+              </Checkbox>
+              <Checkbox
+                checked={reviewFlags.car_was_clean}
+                onChange={e => setReviewFlags(prev => ({ ...prev, car_was_clean: e.target.checked }))}
+              >
+                {t('review.carWasClean')}
+              </Checkbox>
+            </Space>
+          </Space>
         )}
       </Modal>
     </div>
