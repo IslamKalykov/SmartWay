@@ -65,6 +65,7 @@ type PassengerBookingSummary = {
   passenger_verified: boolean;
   seats_count: number;
   contact_phone?: string;
+  contact_telegram?: string;
   has_review_from_me?: boolean;
   bookingIds: number[];
   message?: string;
@@ -258,6 +259,10 @@ interface BookingCardItemProps {
 }
 
 function BookingCardItem({ booking, onConfirm, onReject, t }: BookingCardItemProps) {
+  // Получаем телефон и telegram из всех возможных полей
+  const phone = booking.contact_phone || booking.passenger_phone;
+  const telegram = (booking as any).contact_telegram || (booking as any).passenger_telegram;
+
   return (
     <Card style={styles.bookingCard} styles={{ body: { padding: 16 } }}>
       {/* Header с аватаром */}
@@ -301,26 +306,27 @@ function BookingCardItem({ booking, onConfirm, onReject, t }: BookingCardItemPro
       {/* Контакты */}
       <div style={{ marginBottom: 14 }}>
         <Space wrap>
-          {booking.passenger_phone && (
+          {phone && (
             <Button 
               type="text" 
               size="small"
               icon={<PhoneOutlined />}
-              href={`tel:${booking.passenger_phone}`}
+              href={`tel:${phone}`}
             >
-              {booking.passenger_phone}
+              {phone}
             </Button>
           )}
-          {booking.passenger_telegram && (
+          {telegram && (
             <Button 
               type="text" 
               size="small"
               icon={<SendOutlined />}
               onClick={() => {
-                window.location.href = `https://t.me/${booking.passenger_telegram.replace('@', '')}`;
+                window.location.href = `https://t.me/${telegram.replace('@', '')}`;
               }}
+              style={{ color: '#0088cc' }}
             >
-              {booking.passenger_telegram}
+              Telegram
             </Button>
           )}
         </Space>
@@ -442,6 +448,9 @@ export default function MyAdsPage() {
     car_was_clean: false,
   });
   const [reviewLoading, setReviewLoading] = useState(false);
+  // Локальный трекер оставленных отзывов (для мгновенного UI обновления)
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<number>>(new Set());
+  const [reviewedTripIds, setReviewedTripIds] = useState<Set<number>>(new Set());
 
   // Адаптивные стили для фиксированного header
   const stickyHeaderStyle: React.CSSProperties = {
@@ -538,6 +547,14 @@ export default function MyAdsPage() {
         ...reviewFlags,
       });
       message.success(t('review.submitted'));
+      
+      // Оптимистичное обновление - сразу помечаем как оставлен отзыв
+      if (reviewTarget.type === 'booking') {
+        setReviewedBookingIds(prev => new Set([...prev, reviewTarget.booking.id]));
+      } else if (reviewTarget.type === 'trip') {
+        setReviewedTripIds(prev => new Set([...prev, reviewTarget.trip.id]));
+      }
+      
       setReviewTarget(null);
       setReviewText('');
       loadData();
@@ -604,6 +621,7 @@ export default function MyAdsPage() {
       existingSummary.bookingIds.push(booking.id);
       existingSummary.has_review_from_me = existingSummary.has_review_from_me || !!booking.has_review_from_me;
       if (!existingSummary.contact_phone) existingSummary.contact_phone = booking.contact_phone;
+      if (!existingSummary.contact_telegram) existingSummary.contact_telegram = (booking as any).contact_telegram;
       if (!existingSummary.passenger_phone) existingSummary.passenger_phone = booking.passenger_phone;
       if (!existingSummary.message && booking.message) existingSummary.message = booking.message;
       if (!existingSummary.announcement_info) existingSummary.announcement_info = booking.announcement_info;
@@ -618,6 +636,7 @@ export default function MyAdsPage() {
         passenger_verified: booking.passenger_verified,
         seats_count: booking.seats_count,
         contact_phone: booking.contact_phone,
+        contact_telegram: (booking as any).contact_telegram,
         has_review_from_me: booking.has_review_from_me,
         bookingIds: [booking.id],
         message: booking.message,
@@ -628,6 +647,17 @@ export default function MyAdsPage() {
 
   const activeTrips = trips.filter(t => ['open', 'taken', 'in_progress'].includes(t.status));
   const completedTrips = trips.filter(t => ['completed', 'cancelled'].includes(t.status));
+
+  // Проверка оставлен ли отзыв (с учётом локального состояния)
+  const isBookingReviewed = (bookingIds: number[], hasReviewFromServer?: boolean): boolean => {
+    if (hasReviewFromServer) return true;
+    return bookingIds.some(id => reviewedBookingIds.has(id));
+  };
+
+  const isTripReviewed = (tripId: number, hasReviewFromServer?: boolean): boolean => {
+    if (hasReviewFromServer) return true;
+    return reviewedTripIds.has(tripId);
+  };
 
   const renderCompletedTripCard = (trip: Trip) => {
     const departureLabel = dayjs(trip.departure_time).format('DD MMM, HH:mm');
@@ -641,8 +671,8 @@ export default function MyAdsPage() {
     const counterpartName = trip.my_role === 'driver' ? trip.passenger_name : trip.driver_name;
     const phone = trip.my_role === 'driver' ? trip.passenger_phone : trip.driver_phone || trip.contact_phone;
     const cleanPhone = phone?.replace(/\D/g, '');
-    const canReview = trip.status === 'completed' && !trip.has_review_from_me && !!(trip.driver || trip.passenger);
-    const alreadyReviewed = trip.has_review_from_me;
+    const alreadyReviewed = isTripReviewed(trip.id, trip.has_review_from_me);
+    const canReview = trip.status === 'completed' && !alreadyReviewed && !!(trip.driver || trip.passenger);
     const statusText = t(`tripStatus.${trip.status}`, { defaultValue: trip.status });
 
     return (
@@ -771,8 +801,9 @@ export default function MyAdsPage() {
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
             {bookingsForAnnouncement.map((booking) => {
               const phone = booking.contact_phone || booking.passenger_phone;
+              const telegram = booking.contact_telegram;
               const cleanPhone = phone?.replace(/\D/g, '');
-              const alreadyReviewed = !!booking.has_review_from_me;
+              const alreadyReviewed = isBookingReviewed(booking.bookingIds, booking.has_review_from_me);
               const canReview = !alreadyReviewed;
 
               return (
@@ -795,15 +826,27 @@ export default function MyAdsPage() {
                         </Space>
                       </div>
                     </Space>
-                    {phone && (
-                      <Button
-                        size="small"
-                        icon={<PhoneOutlined />}
-                        onClick={() => cleanPhone && window.open(`tel:+${cleanPhone}`)}
-                      >
-                        {t('trip.call')}
-                      </Button>
-                    )}
+                    <Space>
+                      {telegram && (
+                        <Button
+                          size="small"
+                          icon={<SendOutlined />}
+                          onClick={() => window.open(`https://t.me/${telegram.replace('@', '')}`)}
+                          style={{ color: '#0088cc' }}
+                        >
+                          Telegram
+                        </Button>
+                      )}
+                      {phone && (
+                        <Button
+                          size="small"
+                          icon={<PhoneOutlined />}
+                          onClick={() => cleanPhone && window.open(`tel:+${cleanPhone}`)}
+                        >
+                          {t('trip.call')}
+                        </Button>
+                      )}
+                    </Space>
                   </div>
 
                   {booking.message && (
@@ -818,9 +861,9 @@ export default function MyAdsPage() {
                         {t('booking.ratePassenger')}
                       </Button>
                     ) : (
-                      <Text type="secondary">
-                        {alreadyReviewed ? t('review.alreadyLeft') : t('booking.status.completed')}
-                      </Text>
+                      <Tag color="purple" icon={<CheckCircleOutlined />}>
+                        {t('review.alreadyLeft')}
+                      </Tag>
                     )}
                   </div>
                 </Card>
