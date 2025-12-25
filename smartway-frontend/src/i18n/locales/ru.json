@@ -200,11 +200,43 @@
         "model": "Модель",
         "year": "Год выпуска",
         "color": "Цвет",
+        "bodyType": "Тип кузова",
         "plateNumber": "Гос. номер",
         "seats": "Мест",
+        "passengerSeats": "Пассажирских мест",
         "verified": "Проверено",
         "addTitle": "Добавить автомобиль",
-        "editTitle": "Редактировать авто"
+        "editTitle": "Редактировать авто",
+        "amenities": "Удобства",
+        "createSuccess": "Автомобиль добавлен",
+        "updateSuccess": "Автомобиль обновлён",
+        "saveError": "Ошибка сохранения",
+        "placeholders": {
+            "brand": "Выберите марку",
+            "model": "Например: Camry",
+            "year": "2020",
+            "color": "Белый",
+            "plate": "01 KG 123 ABC"
+        },
+        "validation": {
+            "brandRequired": "Выберите марку",
+            "modelRequired": "Введите модель",
+            "plateRequired": "Введите госномер",
+            "seatsRequired": "Укажите количество мест"
+        },
+        "types": {
+            "sedan": "Седан",
+            "suv": "Внедорожник",
+            "minivan": "Минивэн",
+            "hatchback": "Хэтчбек",
+            "wagon": "Универсал",
+            "other": "Другое"
+        },
+        "features": {
+            "wifi": "Wi‑Fi",
+            "childSeat": "Детское кресло",
+            "luggageSpace": "Место для багажа"
+        }
     },
     "review": {
         "leaveReview": "Оставить отзыв",
@@ -251,13 +283,18 @@
         "notFound": "Не найдено",
         "unauthorized": "Необходимо войти в систему",
         "forbidden": "Доступ запрещён",
-        "validationError": "Проверьте введённые данные"
+        "validationError": "Проверьте введённые данные",
+        "authTokenMissing": "Сервер не вернул токен авторизации"
     },
     "language": {
         "ru": "Русский",
         "en": "English",
         "ky": "Кыргызча",
         "select": "Выберите язык"
+    },
+    "location": {
+        "popular": "Популярные",
+        "notFound": "Не найдено"
     },
     "contact": {
         "telegram": "Написать в Telegram",

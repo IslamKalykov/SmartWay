@@ -5,6 +5,7 @@ import { EnvironmentOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { fetchLocations, fetchPopularLocations, type Location } from '../api/locations';
 
+
 interface LocationSelectProps {
   value?: number;
   onChange?: (value: number, location?: Location) => void;
@@ -24,7 +25,7 @@ export default function LocationSelect({
   style,
   size = 'middle',
 }: LocationSelectProps) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [locations, setLocations] = useState<Location[]>([]);
   const [popularLocations, setPopularLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
@@ -151,7 +152,7 @@ export default function LocationSelect({
       {!searchValue && popularOptions.length > 0 && (
         <div style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0' }}>
           <div style={{ color: '#999', fontSize: 12, marginBottom: 8 }}>
-            Популярные
+            {t('location.popular')}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {popularOptions.map(loc => (
@@ -188,7 +189,7 @@ export default function LocationSelect({
       filterOption={false}
       onSearch={setSearchValue}
       loading={loading}
-      notFoundContent={loading ? <Spin size="small" /> : 'Не найдено'}
+      notFoundContent={loading ? <Spin size="small" /> : t('location.notFound')}
       options={groupedOptions}
       allowClear
       optionFilterProp="label"

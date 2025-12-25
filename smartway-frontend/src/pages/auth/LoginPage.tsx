@@ -64,7 +64,7 @@ export default function LoginPage() {
       const user = result.user;
 
       if (!accessToken) {
-        message.error('Сервер не вернул токен авторизации');
+        message.error(t('errors.authTokenMissing'));
         return;
       }
 

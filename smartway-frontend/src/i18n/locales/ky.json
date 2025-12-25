@@ -199,11 +199,43 @@
         "model": "Модели",
         "year": "Жылы",
         "color": "Түсү",
+        "bodyType": "Кузов түрү",
         "plateNumber": "Номери",
         "seats": "Орун",
+        "passengerSeats": "Жүргүнчү орундар",
         "verified": "Текшерилген",
         "addTitle": "Унаа кошуу",
-        "editTitle": "Унааны өзгөртүү"
+        "editTitle": "Унааны өзгөртүү",
+        "amenities": "Ыңгайлуулуктар",
+        "createSuccess": "Унаа кошулду",
+        "updateSuccess": "Унаа жаңыртылды",
+        "saveError": "Сактоо катасы",
+        "placeholders": {
+            "brand": "Марканы тандаңыз",
+            "model": "Мисалы: Camry",
+            "year": "2020",
+            "color": "Ак",
+            "plate": "01 KG 123 ABC"
+        },
+        "validation": {
+            "brandRequired": "Марканы тандаңыз",
+            "modelRequired": "Моделди жазыңыз",
+            "plateRequired": "Номерди жазыңыз",
+            "seatsRequired": "Орун санын көрсөтүңүз"
+        },
+        "types": {
+            "sedan": "Седан",
+            "suv": "Жолтандабас",
+            "minivan": "Минивэн",
+            "hatchback": "Хэтчбек",
+            "wagon": "Универсал",
+            "other": "Башка"
+        },
+        "features": {
+            "wifi": "Wi‑Fi",
+            "childSeat": "Балдар креслосу",
+            "luggageSpace": "Жүк коюу жери"
+        }
     },
     "review": {
         "leaveReview": "Пикир калтыруу",
@@ -249,13 +281,18 @@
         "notFound": "Табылган жок",
         "unauthorized": "Кирүү керек",
         "forbidden": "Уруксат жок",
-        "validationError": "Киргизилген маалыматтарды текшериңиз"
+        "validationError": "Киргизилген маалыматтарды текшериңиз",
+        "authTokenMissing": "Сервер авторизация токенин кайтарган жок"
     },
     "language": {
         "ru": "Русский",
         "en": "English",
         "ky": "Кыргызча",
         "select": "Тил тандоо"
+    },
+    "location": {
+        "popular": "Популярдуу",
+        "notFound": "Табылган жок"
     },
     "contact": {
         "telegram": "Telegram жазуу",

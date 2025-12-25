@@ -199,11 +199,43 @@
         "model": "Model",
         "year": "Year",
         "color": "Color",
+        "bodyType": "Body type",
         "plateNumber": "License Plate",
         "seats": "Seats",
+        "passengerSeats": "Passenger seats",
         "verified": "Verified",
         "addTitle": "Add Car",
-        "editTitle": "Edit Car"
+        "editTitle": "Edit Car",
+        "amenities": "Amenities",
+        "createSuccess": "Car added",
+        "updateSuccess": "Car updated",
+        "saveError": "Failed to save car",
+        "placeholders": {
+            "brand": "Select brand",
+            "model": "e.g. Camry",
+            "year": "2020",
+            "color": "White",
+            "plate": "01 KG 123 ABC"
+        },
+        "validation": {
+            "brandRequired": "Select brand",
+            "modelRequired": "Enter model",
+            "plateRequired": "Enter license plate",
+            "seatsRequired": "Specify seats count"
+        },
+        "types": {
+            "sedan": "Sedan",
+            "suv": "SUV",
+            "minivan": "Minivan",
+            "hatchback": "Hatchback",
+            "wagon": "Wagon",
+            "other": "Other"
+        },
+        "features": {
+            "wifi": "Wi‑Fi",
+            "childSeat": "Child seat",
+            "luggageSpace": "Luggage space"
+        }
     },
     "review": {
         "leaveReview": "Leave Review",
@@ -249,13 +281,18 @@
         "notFound": "Not found",
         "unauthorized": "Please login",
         "forbidden": "Access denied",
-        "validationError": "Check entered data"
+        "validationError": "Check entered data",
+        "authTokenMissing": "Authorization token was not returned"
     },
     "language": {
         "ru": "Русский",
         "en": "English",
         "ky": "Кыргызча",
         "select": "Select Language"
+    },
+    "location": {
+        "popular": "Popular",
+        "notFound": "Not found"
     },
     "contact": {
         "telegram": "Message to Telegram",

@@ -6,6 +6,7 @@ import {
 } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
+import { useTranslation } from 'react-i18next';
 
 import { createCar, updateCar } from '../api/auth';
 import type { Car } from '../api/auth';
@@ -18,14 +19,7 @@ interface CarFormProps {
   onCancel: () => void;
 }
 
-const carTypes = [
-  { value: 'sedan', label: 'Седан' },
-  { value: 'suv', label: 'Внедорожник' },
-  { value: 'minivan', label: 'Минивэн' },
-  { value: 'hatchback', label: 'Хэтчбек' },
-  { value: 'wagon', label: 'Универсал' },
-  { value: 'other', label: 'Другое' },
-];
+const carTypes = ['sedan', 'suv', 'minivan', 'hatchback', 'wagon', 'other'] as const;
 
 const popularBrands = [
   'Toyota', 'Honda', 'Hyundai', 'Kia', 'Nissan', 'Mazda',
@@ -34,6 +28,7 @@ const popularBrands = [
 ];
 
 export default function CarForm({ car, onSuccess, onCancel }: CarFormProps) {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -60,16 +55,16 @@ export default function CarForm({ car, onSuccess, onCancel }: CarFormProps) {
       
       if (car) {
         await updateCar(car.id, data);
-        message.success('Автомобиль обновлён');
+        message.success(t('car.updateSuccess'));
       } else {
         await createCar(data);
-        message.success('Автомобиль добавлен');
+        message.success(t('car.createSuccess'));
       }
       
       onSuccess();
     } catch (error: any) {
       console.error(error);
-      message.error(error?.response?.data?.detail || 'Ошибка сохранения');
+      message.error(error?.response?.data?.detail || t('car.saveError'));
     } finally {
       setLoading(false);
     }
@@ -105,12 +100,12 @@ export default function CarForm({ car, onSuccess, onCancel }: CarFormProps) {
         <Col span={12}>
           <Form.Item
             name="brand"
-            label="Марка"
-            rules={[{ required: true, message: 'Выберите марку' }]}
+            label={t('car.brand')}
+            rules={[{ required: true, message: t('car.validation.brandRequired') }]}
           >
             <Select
               showSearch
-              placeholder="Выберите марку"
+              placeholder={t('car.placeholders.brand')}
               optionFilterProp="children"
               allowClear
             >
@@ -124,42 +119,42 @@ export default function CarForm({ car, onSuccess, onCancel }: CarFormProps) {
         <Col span={12}>
           <Form.Item
             name="model"
-            label="Модель"
-            rules={[{ required: true, message: 'Введите модель' }]}
+            label={t('car.model')}
+            rules={[{ required: true, message: t('car.validation.modelRequired') }]}
           >
-            <Input placeholder="Например: Camry" />
+            <Input placeholder={t('car.placeholders.model')} />
           </Form.Item>
         </Col>
       </Row>
 
       <Row gutter={16}>
         <Col span={8}>
-          <Form.Item name="year" label="Год выпуска">
+          <Form.Item name="year" label={t('car.year')}>
             <InputNumber
               min={1950}
               max={new Date().getFullYear() + 1}
               style={{ width: '100%' }}
-              placeholder="2020"
+              placeholder={t('car.placeholders.year')}
             />
           </Form.Item>
         </Col>
         
         <Col span={8}>
-          <Form.Item name="color" label="Цвет">
-            <Input placeholder="Белый" />
+          <Form.Item name="color" label={t('car.color')}>
+            <Input placeholder={t('car.placeholders.color')} />
           </Form.Item>
         </Col>
         
         <Col span={8}>
           <Form.Item
             name="car_type"
-            label="Тип кузова"
+            label={t('car.bodyType')}
             rules={[{ required: true }]}
           >
             <Select>
               {carTypes.map(type => (
-                <Option key={type.value} value={type.value}>
-                  {type.label}
+                <Option key={type} value={type}>
+                  {t(`car.types.${type}`)}
                 </Option>
               ))}
             </Select>
@@ -171,18 +166,18 @@ export default function CarForm({ car, onSuccess, onCancel }: CarFormProps) {
         <Col span={12}>
           <Form.Item
             name="plate_number"
-            label="Госномер"
-            rules={[{ required: true, message: 'Введите госномер' }]}
+            label={t('car.plateNumber')}
+            rules={[{ required: true, message: t('car.validation.plateRequired') }]}
           >
-            <Input placeholder="01 KG 123 ABC" style={{ textTransform: 'uppercase' }} />
+            <Input placeholder={t('car.placeholders.plate')} style={{ textTransform: 'uppercase' }} />
           </Form.Item>
         </Col>
         
         <Col span={12}>
           <Form.Item
             name="passenger_seats"
-            label="Пассажирских мест"
-            rules={[{ required: true, message: 'Укажите количество мест' }]}
+            label={t('car.passengerSeats')}
+            rules={[{ required: true, message: t('car.validation.seatsRequired') }]}
           >
             <InputNumber min={1} max={50} style={{ width: '100%' }} />
           </Form.Item>
@@ -190,38 +185,38 @@ export default function CarForm({ car, onSuccess, onCancel }: CarFormProps) {
       </Row>
 
       <div style={{ marginBottom: 16 }}>
-        <strong>Удобства:</strong>
+          <strong>{t('car.amenities')}:</strong>
       </div>
       
       <Row gutter={[16, 8]}>
         <Col span={12}>
           <Form.Item name="has_air_conditioning" valuePropName="checked">
-            <Switch /> Кондиционер
+            <Switch /> {t('rideOptions.airConditioning')}
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item name="has_wifi" valuePropName="checked">
-            <Switch /> Wi-Fi
+            <Switch /> {t('car.features.wifi')}
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item name="has_child_seat" valuePropName="checked">
-            <Switch /> Детское кресло
+            <Switch /> {t('car.features.childSeat')}
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item name="has_luggage_space" valuePropName="checked">
-            <Switch /> Место для багажа
+            <Switch /> {t('car.features.luggageSpace')}
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item name="allows_smoking" valuePropName="checked">
-            <Switch /> Можно курить
+            <Switch /> {t('rideOptions.allowSmoking')}
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item name="allows_pets" valuePropName="checked">
-            <Switch /> Можно с животными
+            <Switch /> {t('rideOptions.allowPets')}
           </Form.Item>
         </Col>
       </Row>
@@ -229,9 +224,9 @@ export default function CarForm({ car, onSuccess, onCancel }: CarFormProps) {
       <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
         <Space>
           <Button type="primary" htmlType="submit" loading={loading}>
-            {car ? 'Сохранить' : 'Добавить'}
+            {car ? t('common.save') : t('common.create')}
           </Button>
-          <Button onClick={onCancel}>Отмена</Button>
+          <Button onClick={onCancel}>{t('common.cancel')}</Button>
         </Space>
       </Form.Item>
     </Form>

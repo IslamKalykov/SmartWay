@@ -382,9 +382,10 @@ function AnnouncementWrapper({ announcement, onComplete, onCancel, t }: Announce
 // ==================== FAB компонент ====================
 interface FABProps {
   onClick: () => void;
+  label: string;
 }
 
-function FloatingActionButton({ onClick }: FABProps) {
+function FloatingActionButton({ onClick, label }: FABProps) {
   const [isHovered, setIsHovered] = useState(false);
   
   return (
@@ -396,7 +397,7 @@ function FloatingActionButton({ onClick }: FABProps) {
         ...styles.fabButton,
         ...(isHovered ? styles.fabButtonHover : {}),
       }}
-      aria-label="Создать"
+      aria-label={label}
     >
       <PlusOutlined style={styles.fabIcon} />
     </button>
@@ -925,6 +926,7 @@ export default function MyAdsPage() {
       {/* FAB кнопка создания - СПРАВА */}
       <FloatingActionButton
         onClick={() => setShowCreateModal(true)}
+        label={t('common.create')}
       />
 
       {/* Модалка создания */}

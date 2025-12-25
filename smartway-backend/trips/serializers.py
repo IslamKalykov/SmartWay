@@ -159,12 +159,12 @@ class TripCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = self.context["request"].user
+        user = validated_data.get("driver") or self.context["request"].user
         # Убираем passenger если он случайно попал в validated_data
         validated_data.pop('passenger', None)
         if not validated_data.get('contact_phone'):
             validated_data['contact_phone'] = user.phone_number
-        return Trip.objects.create(passenger=user, **validated_data)
+        return DriverAnnouncement.objects.create(**validated_data)
 
 
 class TripListSerializer(serializers.ModelSerializer):
