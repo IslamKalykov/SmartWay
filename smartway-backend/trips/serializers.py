@@ -462,15 +462,21 @@ class BookingSerializer(serializers.ModelSerializer):
     passenger_phone = serializers.CharField(source="passenger.phone_number", read_only=True)
     passenger_photo = serializers.ImageField(source="passenger.photo", read_only=True)
     passenger_verified = serializers.BooleanField(source="passenger.is_verified_passenger", read_only=True)
+    passenger_telegram = serializers.SerializerMethodField()
+    seats_requested = serializers.IntegerField(source="seats_count", read_only=True)
     announcement_info = serializers.SerializerMethodField()
+    announcement_from = serializers.SerializerMethodField()
+    announcement_to = serializers.SerializerMethodField()
+    driver_phone = serializers.SerializerMethodField()
     has_review_from_me = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
         fields = (
             "id", "announcement", "announcement_info",
-            "passenger", "passenger_name", "passenger_phone", "passenger_photo", "passenger_verified",
-            "seats_count", "status", "message", "driver_comment", "contact_phone",
+            "passenger", "passenger_name", "passenger_phone", "passenger_photo", "passenger_verified", "passenger_telegram",
+            "seats_count", "seats_requested", "status", "message", "driver_comment", "contact_phone",
+            "announcement_from", "announcement_to", "driver_phone",
             "has_review_from_me",
             "created_at", "updated_at"
         )
@@ -486,14 +492,29 @@ class BookingSerializer(serializers.ModelSerializer):
             "departure_time": ann.departure_time,
             "price_per_seat": str(ann.price_per_seat),
             "driver_name": ann.driver.full_name,
+            "driver_phone": ann.contact_phone or ann.driver.phone_number,
         }
+    
+    def get_announcement_from(self, obj):
+        lang = self._get_lang()
+        return obj.announcement.from_location.get_name(lang)
+
+    def get_announcement_to(self, obj):
+        lang = self._get_lang()
+        return obj.announcement.to_location.get_name(lang)
+
+    def get_driver_phone(self, obj):
+        return obj.announcement.contact_phone or obj.announcement.driver.phone_number
     
     def get_has_review_from_me(self, obj):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
         if not user or not getattr(user, 'is_authenticated', False):
             return False
-        return Review.objects.filter(author=user, booking__announcement=obj.announcement).exists()
+        return Review.objects.filter(author=user, booking=obj).exists()
+
+    def get_passenger_telegram(self, obj):
+        return getattr(obj.passenger, "telegram_username", None) or getattr(obj.passenger, "telegram", None)
 
 
     def _get_lang(self):

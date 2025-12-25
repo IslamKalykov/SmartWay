@@ -88,6 +88,11 @@ export interface Booking {
   driver_comment?: string;
   contact_phone?: string;
   has_review_from_me?: boolean;
+  passenger_telegram?: string;
+  seats_requested?: number;
+  announcement_from?: string;
+  announcement_to?: string;
+  driver_phone?: string;
   created_at: string;
 }
 

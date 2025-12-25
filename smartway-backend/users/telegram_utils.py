@@ -20,7 +20,7 @@ API_BASE_URL = getattr(
 TELEGRAM_SEND_MESSAGE_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
 
-def send_telegram_message(chat_id: int, text: str) -> None:
+def send_telegram_message(chat_id: int, text: str, reply_markup: dict | None = None) -> None:
     """
     Универсальная отправка сообщения в Telegram.
     Безопасно логируем ошибки, чтобы не ломать основной поток.
@@ -33,13 +33,18 @@ def send_telegram_message(chat_id: int, text: str) -> None:
         return
 
     try:
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+        }
+
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+
         resp = requests.post(
             TELEGRAM_SEND_MESSAGE_URL,
-            json={
-                "chat_id": chat_id,
-                "text": text,
-                "parse_mode": "HTML",
-            },
+            json=payload,
             timeout=5,
         )
         if resp.status_code != 200:

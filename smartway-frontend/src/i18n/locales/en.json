@@ -116,6 +116,7 @@
         "seatsCount": "Number of Seats",
         "message": "Message to Driver",
         "messagePlaceholder": "Write your requests or questions...",
+        "seatsExceeded": "That many seats are not available. Please enter a number within availability.",
         "confirm": "Confirm Booking",
         "cancel": "Cancel",
         "confirmed": "Booking confirmed!",

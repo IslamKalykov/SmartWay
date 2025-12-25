@@ -20,6 +20,7 @@ from .serializers import (
 from .notifications import (
     send_booking_completed_notification,
     send_booking_created_notification,
+    send_booking_status_notification,
     send_trip_completed_notification,
     send_trip_taken_notification,
 )
@@ -327,9 +328,20 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         announcement.status = 'cancelled'
         announcement.save(update_fields=['status', 'updated_at'])
         
-        # Отменяем все бронирования
-        announcement.bookings.filter(status='pending').update(status='cancelled')
-        announcement.bookings.filter(status='confirmed').update(status='cancelled')
+        # Отменяем все бронирования и уведомляем пассажиров
+        affected_bookings = announcement.bookings.filter(
+            status__in=['pending', 'confirmed']
+        ).select_related(
+            'passenger',
+            'announcement',
+            'announcement__driver',
+            'announcement__from_location',
+            'announcement__to_location',
+        )
+        for booking in affected_bookings:
+            booking.status = 'cancelled'
+            booking.save(update_fields=['status', 'updated_at'])
+            send_booking_status_notification(booking)
         
         return Response(AnnouncementDetailSerializer(announcement, context={'request': request}).data)
     
@@ -379,7 +391,13 @@ class BookingViewSet(viewsets.ModelViewSet):
         # Пассажир видит свои бронирования, водитель - бронирования на свои объявления
         return Booking.objects.filter(
             Q(passenger=user) | Q(announcement__driver=user)
-        ).select_related('passenger', 'announcement', 'announcement__driver').order_by('-created_at')
+        ).select_related(
+            'passenger',
+            'announcement',
+            'announcement__driver',
+            'announcement__from_location',
+            'announcement__to_location',
+        ).order_by('-created_at')
 
 
     def perform_create(self, serializer):
@@ -425,7 +443,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         if announcement.free_seats <= 0:
             announcement.status = 'full'
         announcement.save(update_fields=['booked_seats', 'status', 'updated_at'])
-        
+        send_booking_status_notification(booking)
         return Response(BookingSerializer(booking).data)
     
     @action(detail=True, methods=['post'])
@@ -442,7 +460,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.status = 'rejected'
         booking.driver_comment = request.data.get('comment', '')
         booking.save(update_fields=['status', 'driver_comment', 'updated_at'])
-        
+        send_booking_status_notification(booking)
         return Response(BookingSerializer(booking).data)
     
     @action(detail=True, methods=['post'])
@@ -466,7 +484,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         
         booking.status = 'cancelled'
         booking.save(update_fields=['status', 'updated_at'])
-        
+        send_booking_status_notification(booking)
         return Response(BookingSerializer(booking).data)
 
 

@@ -54,6 +54,37 @@ def send_booking_created_notification(booking):
     )
     send_telegram_message(driver_chat, text)
 
+def send_booking_status_notification(booking):
+    """Уведомить пассажира об изменении статуса его бронирования"""
+    passenger_chat = getattr(booking.passenger, "telegram_chat_id", None)
+    announcement = booking.announcement
+    driver = announcement.driver
+
+    if not passenger_chat:
+        return
+
+    route = _route_label(announcement.from_location, announcement.to_location)
+    time_label = _format_time(announcement.departure_time)
+
+    status_labels = {
+        booking.Status.CONFIRMED: "подтверждена",
+        booking.Status.REJECTED: "отклонена",
+        booking.Status.CANCELLED: "отменена",
+    }
+
+    status_label = status_labels.get(booking.status, booking.status)
+    driver_label = (driver.full_name or driver.phone_number) if driver else "водитель"
+    driver_phone = announcement.contact_phone or getattr(driver, "phone_number", "")
+
+    text = (
+        f"Ваша бронь {status_label}.\n"
+        f"Маршрут: {route}\n"
+        f"Время: {time_label}\n"
+        f"Водитель: {driver_label}\n"
+        f"Телефон водителя: {driver_phone}"
+    )
+
+    send_telegram_message(passenger_chat, text)
 
 def send_trip_completed_notification(trip):
     """Уведомить участников о завершении поездки и напомнить оставить отзыв"""
