@@ -324,7 +324,6 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
         attrs["to_location"] = _ensure_location_instance(attrs.get("to_location"))
         return attrs
 
-
     def create(self, validated_data):
         driver = validated_data.pop("driver", None) or self.context["request"].user
         if not validated_data.get("contact_phone"):

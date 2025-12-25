@@ -764,6 +764,10 @@ export default function SearchPage() {
     loadData();
   }, [isAuth, isDriver, i18n.language]);
 
+  useEffect(() => {
+    setActiveTab('available');
+  }, [isDriver]);
+
   const handleSearch = (newFilters: SearchFilters) => {
     setFilters(newFilters);
     loadData(newFilters);

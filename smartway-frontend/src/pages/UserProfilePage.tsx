@@ -319,6 +319,11 @@ export default function UserProfilePage() {
                   <CarOutlined /> {t('trip.driver')}
                 </Tag>
               )}
+              {!profile.is_driver && (
+                <Tag color="geekblue">
+                  <UserOutlined /> {t('trip.passenger')}
+                </Tag>
+              )}
               {profile.is_verified_driver && (
                 <Tag color="green" icon={<SafetyCertificateOutlined />}>
                   {t('profile.verifiedDriver')}

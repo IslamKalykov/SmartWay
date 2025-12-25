@@ -20,8 +20,8 @@ import {
 } from 'antd';
 import {
   PlusOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  UserOutlined, PhoneOutlined, ClockCircleOutlined, CarOutlined, 
-  CheckOutlined, StopOutlined, SendOutlined, SafetyCertificateOutlined,
+  UserOutlined, PhoneOutlined, ClockCircleOutlined, 
+  CheckOutlined, StopOutlined, SendOutlined,
   DollarOutlined, EnvironmentOutlined
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -52,7 +52,7 @@ import {
   type Trip,
 } from '../api/trips';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 
 type ReviewTarget = { type: 'trip'; trip: Trip } | { type: 'booking'; booking: Booking };
@@ -447,6 +447,10 @@ export default function MyAdsPage() {
     loadData();
   }, [isDriver, i18n.language]);
 
+  useEffect(() => {
+    setActiveTab('active');
+  }, [isDriver]);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -575,6 +579,13 @@ export default function MyAdsPage() {
   const completedAnnouncements = announcements.filter(a => ['completed', 'cancelled'].includes(a.status));
   const pendingBookings = bookings.filter(b => b.status === 'pending');
   const completedBookings = bookings.filter(b => b.status === 'completed');
+  const completedBookingsByAnnouncement = completedBookings.reduce<Record<number, Booking[]>>((acc, booking) => {
+    if (!acc[booking.announcement]) {
+      acc[booking.announcement] = [];
+    }
+    acc[booking.announcement].push(booking);
+    return acc;
+  }, {});
 
   const activeTrips = trips.filter(t => ['open', 'taken', 'in_progress'].includes(t.status));
   const completedTrips = trips.filter(t => ['completed', 'cancelled'].includes(t.status));
@@ -590,7 +601,7 @@ export default function MyAdsPage() {
     const counterpartLabel = trip.my_role === 'driver' ? t('trip.passenger') : t('trip.driver');
     const counterpartName = trip.my_role === 'driver' ? trip.passenger_name : trip.driver_name;
     const phone = trip.my_role === 'driver' ? trip.passenger_phone : trip.driver_phone || trip.contact_phone;
-    const cleanPhone = phone?.replace(/\\D/g, '');
+    const cleanPhone = phone?.replace(/\D/g, '');
     const canReview = trip.status === 'completed' && !trip.has_review_from_me && !!(trip.driver || trip.passenger);
     const alreadyReviewed = trip.has_review_from_me;
     const statusText = t(`tripStatus.${trip.status}`, { defaultValue: trip.status });
@@ -672,30 +683,22 @@ export default function MyAdsPage() {
     );
   };
 
-  const renderCompletedBookingCard = (booking: Booking) => {
-    const route = booking.announcement_info
-      ? `${booking.announcement_info.from_location} → ${booking.announcement_info.to_location}`
-      : '';
-    const departureLabel = booking.announcement_info?.departure_time
-      ? dayjs(booking.announcement_info.departure_time).format('DD MMM, HH:mm')
-      : '';
-    const alreadyReviewed = booking.has_review_from_me;
-    const canReview = booking.status === 'completed' && !alreadyReviewed;
+  const renderCompletedAnnouncementCard = (announcement: Announcement) => {
+    const bookingsForAnnouncement = completedBookingsByAnnouncement[announcement.id] || [];
+    const routeLabel = `${announcement.from_location_display || announcement.from_location} → ${announcement.to_location_display || announcement.to_location}`;
+    const statusText = t(`announcementStatus.${announcement.status}`, { defaultValue: announcement.status });
+    const departureLabel = dayjs(announcement.departure_time).format('DD MMM, HH:mm');
 
     return (
       <Card
-        key={booking.id}
-        style={{ marginBottom: 12, borderRadius: 14, border: '1px solid #f0f0f0' }}
+        key={announcement.id}
+        style={{ marginBottom: 16, borderRadius: 14, border: '1px solid #f0f0f0' }}
         styles={{ body: { padding: 16 } }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <Space size={8}>
-            <Tag color="green">{t('booking.status.completed')}</Tag>
-            {alreadyReviewed && (
-              <Tag color="purple" icon={<CheckCircleOutlined />}>
-                {t('review.alreadyLeft')}
-              </Tag>
-            )}
+          <Tag color={announcement.status === 'completed' ? 'green' : 'red'}>{statusText}</Tag>
+            <Tag color="blue">{t('trip.driver')}</Tag>
           </Space>
           <Text type="secondary">{departureLabel}</Text>
         </div>
@@ -703,34 +706,91 @@ export default function MyAdsPage() {
         <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <Space>
             <EnvironmentOutlined style={{ color: '#1677ff' }} />
-            <Text strong>{route || t('common.noData')}</Text>
+            <Text strong>{routeLabel}</Text>
           </Space>
 
           <Space size={12} wrap>
-            <Tag icon={<UserOutlined />}>{booking.seats_count} {t('trip.seats')}</Tag>
-            <Tag color="blue" icon={<UserOutlined />}>
-              {booking.passenger_name}
-            </Tag>
+            <Tag icon={<UserOutlined />}>{announcement.available_seats} {announcement.available_seats === 1 ? t('trip.seat') : t('trip.seats')}</Tag>
+              {announcement.price_per_seat ? (
+                <Tag color="green" icon={<DollarOutlined />}>
+                  {announcement.price_per_seat} сом
+                </Tag>
+              ) : (
+                <Tag color="orange">{t('trip.negotiable')}</Tag>
+              )}
           </Space>
 
-          <Text type="secondary">
-            {t('booking.passenger')}: {booking.passenger_name}
-          </Text>
-        </div>
-
-        <Divider style={{ margin: '12px 0' }} />
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          {canReview ? (
-            <Button type="primary" icon={<SendOutlined />} onClick={() => handleOpenBookingReview(booking)}>
-              {t('booking.ratePassenger')}
-            </Button>
-          ) : (
-            <Text type="secondary">
-              {alreadyReviewed ? t('review.alreadyLeft') : t('booking.status.completed')}
+          {announcement.comment && (
+            <Text type="secondary" style={{ display: 'block' }}>
+              {announcement.comment}
             </Text>
           )}
         </div>
+        <Divider style={{ margin: '12px 0' }}>{t('booking.completedTitle')} ({bookingsForAnnouncement.length})</Divider>
+
+        {bookingsForAnnouncement.length > 0 ? (
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            {bookingsForAnnouncement.map((booking) => {
+              const phone = booking.contact_phone || booking.passenger_phone;
+              const cleanPhone = phone?.replace(/\D/g, '');
+              const alreadyReviewed = booking.has_review_from_me;
+              const canReview = booking.status === 'completed' && !alreadyReviewed;
+
+              return (
+                <Card key={booking.id} size="small" style={{ borderRadius: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <Space size={8}>
+                      <Avatar icon={<UserOutlined />} src={booking.passenger_photo} />
+                      <div>
+                        <div style={styles.bookingName}>{booking.passenger_name}</div>
+                        <Space size={6} wrap>
+                          <Tag icon={<UserOutlined />} style={styles.seatsTag}>
+                            {booking.seats_count} {t('trip.seats')}
+                          </Tag>
+                          <Tag color="green">{t('booking.status.completed')}</Tag>
+                          {alreadyReviewed && (
+                            <Tag color="purple" icon={<CheckCircleOutlined />}>
+                              {t('review.alreadyLeft')}
+                            </Tag>
+                          )}
+                        </Space>
+                      </div>
+                    </Space>
+                    {phone && (
+                      <Button
+                        size="small"
+                        icon={<PhoneOutlined />}
+                        onClick={() => cleanPhone && window.open(`tel:+${cleanPhone}`)}
+                      >
+                        {t('trip.call')}
+                      </Button>
+                    )}
+                  </div>
+
+                  {booking.message && (
+                    <div style={styles.bookingMessage}>
+                      <p style={styles.bookingMessageText}>"{booking.message}"</p>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                    {canReview ? (
+                      <Button size="small" type="primary" icon={<SendOutlined />} onClick={() => handleOpenBookingReview(booking)}>
+                        {t('booking.ratePassenger')}
+                      </Button>
+                    ) : (
+                      <Text type="secondary">
+                        {alreadyReviewed ? t('review.alreadyLeft') : t('booking.status.completed')}
+                      </Text>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </Space>
+        ) : (
+          <Text type="secondary">{t('booking.noCompleted')}</Text>
+        )}
       </Card>
     );
   };
@@ -805,13 +865,6 @@ export default function MyAdsPage() {
                   />
                 )}
                 </div>
-  
-                <Divider orientation="left">{t('booking.completedTitle')}</Divider>
-                {completedBookings.length > 0 ? (
-                  completedBookings.map(booking => renderCompletedBookingCard(booking))
-              ) : (
-                <Text type="secondary">{t('booking.noCompleted')}</Text>
-              )}
             </div>
           ),
         },
@@ -825,14 +878,7 @@ export default function MyAdsPage() {
           children: (
             <div style={styles.contentArea}>
               {completedAnnouncements.length > 0 ? (
-                completedAnnouncements.map(ann => (
-                  <div key={ann.id} style={{ marginBottom: 16, opacity: 0.8 }}>
-                    <AnnouncementCard
-                      announcement={ann}
-                      showDriverInfo={false}
-                    />
-                  </div>
-                ))
+                completedAnnouncements.map(ann => renderCompletedAnnouncementCard(ann))
               ) : (
                 <Empty 
                   description={t('common.noData')} 

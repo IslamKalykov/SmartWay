@@ -49,18 +49,19 @@ export default function ProfilePage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [authUser?.id, authUser?.is_driver]);
 
-  const loadData = async () => {
+  const loadData = async (roleOverride?: boolean) => {
     try {
       setLoading(true);
+      const driverMode = roleOverride ?? isDriver;
       const promises: Promise<any>[] = [
         getMyProfile(),
         getMyReceivedReviews().catch(() => []),
       ];
       
       // Загружаем авто только для водителей
-      if (isDriver) {
+      if (driverMode) {
         promises.push(getMyCars().catch(() => []));
       }
 
@@ -69,8 +70,10 @@ export default function ProfilePage() {
       setProfile(results[0]);
       updateUser(results[0]);
       setReviews(results[1]);
-      if (isDriver && results[2]) {
+      if (driverMode && results[2]) {
         setCars(results[2]);
+      } else if (!driverMode) {
+        setCars([]);
       }
 
       form.setFieldsValue({
@@ -140,9 +143,7 @@ export default function ProfilePage() {
       const freshProfile = await getMyProfile();
       setProfile(freshProfile);
       updateUser(freshProfile);
-      if (nextRole === 'passenger') {
-        setCars([]);
-      }
+      await loadData(nextRole === 'driver');
       message.success(t('profile.roleSwitched'));
     } catch (error: any) {
       message.error(error?.response?.data?.detail || t('errors.serverError'));
@@ -383,6 +384,9 @@ export default function ProfilePage() {
             <Space size={8} wrap style={{ marginTop: 8 }}>
               {profile?.is_driver && (
                 <Tag color="blue"><CarOutlined /> {t('trip.driver')}</Tag>
+              )}
+              {!profile?.is_driver && (
+                <Tag color="geekblue"><UserOutlined /> {t('trip.passenger')}</Tag>
               )}
               {profile?.is_verified_driver && (
                 <Tag color="green" icon={<SafetyCertificateOutlined />}>
