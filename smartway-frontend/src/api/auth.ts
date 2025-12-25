@@ -142,6 +142,15 @@ export async function updateProfile(data: Partial<User>): Promise<User> {
 }
 
 /**
+ * Переключить роль (водитель / пассажир)
+ */
+export async function switchRole(role: 'driver' | 'passenger'): Promise<{ is_driver: boolean; message?: string }> {
+  const response = await api.post('/users/me/switch-role/', { role });
+  return response.data;
+}
+
+
+/**
  * Загрузить фото профиля
  */
 export async function uploadPhoto(file: File): Promise<User> {

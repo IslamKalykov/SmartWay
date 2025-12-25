@@ -16,12 +16,14 @@ import {
   type AuthContextValue = {
     isAuth: boolean;
     user: User | null;
+    loading: boolean;
     login: (data: {
       access: string;
       refresh?: string;
       user?: User;
     }) => void;
     logout: () => void;
+    updateUser: (user: User | null) => void;
   };
   
   const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -29,6 +31,7 @@ import {
   export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isAuth, setIsAuth] = useState(false);
+    const [loading, setLoading] = useState(true);
   
     // подтягиваем состояние при загрузке
     useEffect(() => {
@@ -43,6 +46,7 @@ import {
           setIsAuth(false);
         }
       }
+      setLoading(false);
     }, []);
   
     // Замените функцию login на эту:
@@ -59,6 +63,7 @@ import {
         setUser(data.user);
       }
       setIsAuth(true);
+      setLoading(false);
     };
   
     const logout = () => {
@@ -67,10 +72,23 @@ import {
       localStorage.removeItem('user');
       setUser(null);
       setIsAuth(false);
+      setLoading(false);
+    };
+  
+    const updateUser = (newUser: User | null) => {
+      if (newUser) {
+        localStorage.setItem('user', JSON.stringify(newUser));
+        setUser(newUser);
+        setIsAuth(true);
+      } else {
+        localStorage.removeItem('user');
+        setUser(null);
+        setIsAuth(false);
+      }
     };
   
     return (
-      <AuthContext.Provider value={{ isAuth, user, login, logout }}>
+      <AuthContext.Provider value={{ isAuth, user, loading, login, logout, updateUser }}>
         {children}
       </AuthContext.Provider>
     );

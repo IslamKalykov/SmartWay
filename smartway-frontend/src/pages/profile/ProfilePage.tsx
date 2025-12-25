@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
 import { useAuth } from '../../auth/AuthContext';
-import { getMyProfile, updateProfile, uploadPhoto, getMyCars, deleteCar } from '../../api/auth';
+import { getMyProfile, updateProfile, uploadPhoto, getMyCars, deleteCar, switchRole } from '../../api/auth';
 import { getMyReceivedReviews } from '../../api/trips';
 import CarForm from '../../components/CarForm';
 import type { User, Car } from '../../api/auth';
@@ -32,11 +32,12 @@ const calculateAverageRating = (list: Review[]): number | null => {
 export default function ProfilePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user: authUser, logout } = useAuth();
+  const { user: authUser, logout, updateUser } = useAuth();
   const isDriver = authUser?.is_driver ?? false;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [roleChanging, setRoleChanging] = useState(false);
   const [profile, setProfile] = useState<User | null>(null);
   const [cars, setCars] = useState<Car[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -66,6 +67,7 @@ export default function ProfilePage() {
       const results = await Promise.all(promises);
       
       setProfile(results[0]);
+      updateUser(results[0]);
       setReviews(results[1]);
       if (isDriver && results[2]) {
         setCars(results[2]);
@@ -97,6 +99,7 @@ export default function ProfilePage() {
 
       const updated = await updateProfile(data);
       setProfile(updated);
+      updateUser(updated);
       message.success(t('common.success'));
       setEditMode(false);
     } catch (error) {
@@ -125,6 +128,26 @@ export default function ProfilePage() {
       loadData();
     } catch (error) {
       message.error(t('errors.serverError'));
+    }
+  };
+
+  const handleSwitchRole = async () => {
+    if (!profile) return;
+    const nextRole = profile.is_driver ? 'passenger' : 'driver';
+    try {
+      setRoleChanging(true);
+      await switchRole(nextRole);
+      const freshProfile = await getMyProfile();
+      setProfile(freshProfile);
+      updateUser(freshProfile);
+      if (nextRole === 'passenger') {
+        setCars([]);
+      }
+      message.success(t('profile.roleSwitched'));
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || t('errors.serverError'));
+    } finally {
+      setRoleChanging(false);
     }
   };
 
@@ -372,6 +395,15 @@ export default function ProfilePage() {
                 </Tag>
               )}
             </Space>
+            <div style={{ marginTop: 12 }}>
+              <Button
+                size="small"
+                onClick={handleSwitchRole}
+                loading={roleChanging}
+              >
+                {profile?.is_driver ? t('profile.switchToPassenger') : t('profile.switchToDriver')}
+              </Button>
+            </div>
           </div>
         </div>
 

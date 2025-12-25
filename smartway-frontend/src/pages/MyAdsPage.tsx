@@ -55,6 +55,8 @@ import {
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+type ReviewTarget = { type: 'trip'; trip: Trip } | { type: 'booking'; booking: Booking };
+
 // ==================== Стили ====================
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
@@ -415,7 +417,7 @@ export default function MyAdsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
-  const [reviewTrip, setReviewTrip] = useState<Trip | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [reviewFlags, setReviewFlags] = useState({
@@ -479,7 +481,18 @@ export default function MyAdsPage() {
 
   // === Отзывы ===
   const handleOpenReview = (trip: Trip) => {
-    setReviewTrip(trip);
+    setReviewTarget({ type: 'trip', trip });
+    setReviewRating(5);
+    setReviewText('');
+    setReviewFlags({
+      was_on_time: false,
+      was_polite: false,
+      car_was_clean: false,
+    });
+  };
+
+  const handleOpenBookingReview = (booking: Booking) => {
+    setReviewTarget({ type: 'booking', booking });
     setReviewRating(5);
     setReviewText('');
     setReviewFlags({
@@ -490,7 +503,7 @@ export default function MyAdsPage() {
   };
 
   const handleSubmitReview = async () => {
-    if (!reviewTrip) return;
+    if (!reviewTarget) return;
     if (!reviewRating) {
       message.error(t('review.ratingRequired'));
       return;
@@ -498,13 +511,14 @@ export default function MyAdsPage() {
     try {
       setReviewLoading(true);
       await createReview({
-        trip: reviewTrip.id,
+        trip: reviewTarget.type === 'trip' ? reviewTarget.trip.id : undefined,
+        booking: reviewTarget.type === 'booking' ? reviewTarget.booking.id : undefined,
         rating: reviewRating,
         text: reviewText,
         ...reviewFlags,
       });
       message.success(t('review.submitted'));
-      setReviewTrip(null);
+      setReviewTarget(null);
       setReviewText('');
       loadData();
     } catch (error: any) {
@@ -559,6 +573,7 @@ export default function MyAdsPage() {
   const activeAnnouncements = announcements.filter(a => ['active', 'full'].includes(a.status));
   const completedAnnouncements = announcements.filter(a => ['completed', 'cancelled'].includes(a.status));
   const pendingBookings = bookings.filter(b => b.status === 'pending');
+  const completedBookings = bookings.filter(b => b.status === 'completed');
 
   const activeTrips = trips.filter(t => ['open', 'taken', 'in_progress'].includes(t.status));
   const completedTrips = trips.filter(t => ['completed', 'cancelled'].includes(t.status));
@@ -656,6 +671,69 @@ export default function MyAdsPage() {
     );
   };
 
+  const renderCompletedBookingCard = (booking: Booking) => {
+    const route = booking.announcement_info
+      ? `${booking.announcement_info.from_location} → ${booking.announcement_info.to_location}`
+      : '';
+    const departureLabel = booking.announcement_info?.departure_time
+      ? dayjs(booking.announcement_info.departure_time).format('DD MMM, HH:mm')
+      : '';
+    const alreadyReviewed = booking.has_review_from_me;
+    const canReview = booking.status === 'completed' && !alreadyReviewed;
+
+    return (
+      <Card
+        key={booking.id}
+        style={{ marginBottom: 12, borderRadius: 14, border: '1px solid #f0f0f0' }}
+        styles={{ body: { padding: 16 } }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space size={8}>
+            <Tag color="green">{t('booking.status.completed')}</Tag>
+            {alreadyReviewed && (
+              <Tag color="purple" icon={<CheckCircleOutlined />}>
+                {t('review.alreadyLeft')}
+              </Tag>
+            )}
+          </Space>
+          <Text type="secondary">{departureLabel}</Text>
+        </div>
+
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Space>
+            <EnvironmentOutlined style={{ color: '#1677ff' }} />
+            <Text strong>{route || t('common.noData')}</Text>
+          </Space>
+
+          <Space size={12} wrap>
+            <Tag icon={<UserOutlined />}>{booking.seats_count} {t('trip.seats')}</Tag>
+            <Tag color="blue" icon={<UserOutlined />}>
+              {booking.passenger_name}
+            </Tag>
+          </Space>
+
+          <Text type="secondary">
+            {t('booking.passenger')}: {booking.passenger_name}
+          </Text>
+        </div>
+
+        <Divider style={{ margin: '12px 0' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          {canReview ? (
+            <Button type="primary" icon={<SendOutlined />} onClick={() => handleOpenBookingReview(booking)}>
+              {t('booking.ratePassenger')}
+            </Button>
+          ) : (
+            <Text type="secondary">
+              {alreadyReviewed ? t('review.alreadyLeft') : t('booking.status.completed')}
+            </Text>
+          )}
+        </div>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
@@ -707,22 +785,31 @@ export default function MyAdsPage() {
           ),
           children: (
             <div style={styles.contentArea}>
-              {pendingBookings.length > 0 ? (
-                pendingBookings.map(booking => (
-                  <BookingCardItem
-                    key={booking.id}
-                    booking={booking}
-                    onConfirm={handleConfirmBooking}
-                    onReject={handleRejectBooking}
-                    t={t}
+              <div style={{ marginBottom: 16 }}>
+                {pendingBookings.length > 0 ? (
+                  pendingBookings.map(booking => (
+                    <BookingCardItem
+                      key={booking.id}
+                      booking={booking}
+                      onConfirm={handleConfirmBooking}
+                      onReject={handleRejectBooking}
+                      t={t}
+                    />
+                  ))
+                ) : (
+                  <Empty 
+                    description={t('booking.noRequests')} 
+                    style={styles.emptyState}
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
                   />
-                ))
+                )}
+                </div>
+  
+                <Divider orientation="left">{t('booking.completedTitle')}</Divider>
+                {completedBookings.length > 0 ? (
+                  completedBookings.map(booking => renderCompletedBookingCard(booking))
               ) : (
-                <Empty 
-                  description={t('booking.noRequests')} 
-                  style={styles.emptyState}
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                />
+                <Text type="secondary">{t('booking.noCompleted')}</Text>
               )}
             </div>
           ),
@@ -875,19 +962,20 @@ export default function MyAdsPage() {
       {/* Модалка отзыва по завершённой поездке */}
       <Modal
         title={t('review.leaveReview')}
-        open={!!reviewTrip}
-        onCancel={() => setReviewTrip(null)}
+        open={!!reviewTarget}
+        onCancel={() => setReviewTarget(null)}
         onOk={handleSubmitReview}
         okText={t('review.submit')}
         cancelText={t('common.cancel')}
         okButtonProps={{ loading: reviewLoading }}
         destroyOnClose
       >
-        {reviewTrip && (
+        {reviewTarget && (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Text type="secondary">
-              {reviewTrip.from_location_display || reviewTrip.from_location} →{' '}
-              {reviewTrip.to_location_display || reviewTrip.to_location}
+            {reviewTarget.type === 'trip'
+                ? `${reviewTarget.trip.from_location_display || reviewTarget.trip.from_location} → ${reviewTarget.trip.to_location_display || reviewTarget.trip.to_location}`
+                : `${reviewTarget.booking.announcement_info?.from_location || t('common.noData')} → ${reviewTarget.booking.announcement_info?.to_location || t('common.noData')}`}
             </Text>
 
             <div>

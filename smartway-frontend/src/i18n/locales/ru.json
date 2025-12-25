@@ -128,6 +128,9 @@
         "accept": "Принять",
         "reject": "Отклонить",
         "rejectConfirm": "Отклонить эту заявку?",
+        "completedTitle": "Завершённые бронирования",
+        "noCompleted": "Нет завершённых бронирований",
+        "ratePassenger": "Оценить пассажира",
         "status": {
             "pending": "В ожидании",
             "confirmed": "Подтверждено",
@@ -187,7 +190,10 @@
         "verifiedPassenger": "Проверенный пассажир",
         "becomeDriver": "Стать водителем",
         "verification": "Верификация",
-        "logout": "Выйти"
+        "logout": "Выйти",
+        "switchToDriver": "Переключиться на роль водителя",
+        "switchToPassenger": "Переключиться на роль пассажира",
+        "roleSwitched": "Роль обновлена"
     },
     "car": {
         "brand": "Марка",

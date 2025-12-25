@@ -17,6 +17,12 @@ from .serializers import (
     BookingCreateSerializer, BookingSerializer,
     ReviewSerializer, ReviewCreateSerializer,
 )
+from .notifications import (
+    send_booking_completed_notification,
+    send_booking_created_notification,
+    send_trip_completed_notification,
+    send_trip_taken_notification,
+)
 
 
 def get_driver_priority_and_delay(user):
@@ -144,6 +150,8 @@ class TripViewSet(viewsets.ModelViewSet):
         trip.driver = user
         trip.status = 'taken'
         trip.save(update_fields=['driver', 'car', 'status', 'updated_at'])
+
+        send_trip_taken_notification(trip)
         
         return Response(TripDetailSerializer(trip, context={'request': request}).data)
     
@@ -186,6 +194,7 @@ class TripViewSet(viewsets.ModelViewSet):
         if trip.passenger:
             trip.passenger.trips_completed_as_passenger += 1
             trip.passenger.save(update_fields=['trips_completed_as_passenger'])
+        send_trip_completed_notification(trip)
         
         return Response(TripDetailSerializer(trip, context={'request': request}).data)
     
@@ -343,9 +352,13 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         for booking in confirmed_bookings:
             booking.passenger.trips_completed_as_passenger += 1
             booking.passenger.save(update_fields=['trips_completed_as_passenger'])
+            send_booking_completed_notification(booking, notify_driver=False)
         
         announcement.driver.trips_completed_as_driver += 1
         announcement.driver.save(update_fields=['trips_completed_as_driver'])
+        if confirmed_bookings.exists():
+            # Отдельно уведомим водителя, что можно оценить пассажиров
+            send_booking_completed_notification(confirmed_bookings.first(), notify_passenger=False)
         
         return Response(AnnouncementDetailSerializer(announcement, context={'request': request}).data)
 
@@ -367,6 +380,11 @@ class BookingViewSet(viewsets.ModelViewSet):
         return Booking.objects.filter(
             Q(passenger=user) | Q(announcement__driver=user)
         ).select_related('passenger', 'announcement', 'announcement__driver').order_by('-created_at')
+
+
+    def perform_create(self, serializer):
+        booking = serializer.save()
+        send_booking_created_notification(booking)
     
     @action(detail=False, methods=['get'])
     def my(self, request):

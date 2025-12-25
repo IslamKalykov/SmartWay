@@ -16,6 +16,16 @@ class Trip(models.Model):
         CANCELLED = "cancelled", "Отменена"
         EXPIRED = "expired", "Просрочена"
 
+    class TripStatus:
+        """Совместимость с legacy-именованием статусов"""
+        PENDING = "open"
+        OPEN = "open"
+        TAKEN = "taken"
+        IN_PROGRESS = "in_progress"
+        COMPLETED = "completed"
+        CANCELLED = "cancelled"
+        EXPIRED = "expired"
+
     status = models.CharField(
         max_length=20,
         choices=Status.choices,

@@ -4,6 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 from .models import Trip, DriverAnnouncement, Booking, Review
 from users.models import Car
+from locations.models import Location
 
 # trips/serializers.py (в начало файла, после импортов)
 def _resolve_lang_from_request(request):
@@ -40,6 +41,84 @@ def _resolve_lang_from_request(request):
     return 'ru'
 
 
+# trips/serializers.py
+from rest_framework import serializers
+from django.db import transaction
+from django.utils import timezone
+from .models import Trip, DriverAnnouncement, Booking, Review
+from users.models import Car
+from locations.models import Location
+
+# trips/serializers.py (в начало файла, после импортов)
+def _resolve_lang_from_request(request):
+    """
+    Надёжно получить 2-символьный код языка из request:
+    1) ?lang=xy
+    2) request.LANGUAGE_CODE (Django LocaleMiddleware)
+    3) Accept-Language header (парсим первый предпочтительный язык)
+    Иначе возвращаем 'ru' по-умолчанию.
+    """
+    if not request:
+        return 'ru'
+
+    # 1) query param
+    lang = request.query_params.get('lang')
+    if lang:
+        return lang[:2]
+
+    # 2) Django LocaleMiddleware
+    language_code = getattr(request, 'LANGUAGE_CODE', None)
+    if language_code:
+        return language_code[:2]
+
+    # 3) Accept-Language
+    al = request.headers.get('Accept-Language') or request.META.get('HTTP_ACCEPT_LANGUAGE', '') or ''
+    if al:
+        # берем первую часть, убираем q/регион и т.п.
+        first = al.split(',')[0].strip()
+        first = first.split(';')[0].strip()
+        first = first.split('-')[0].strip()
+        if first:
+            return first[:2]
+
+    return 'ru'
+
+
+def _ensure_location_instance(value):
+    """
+    Поддерживаем совместимость: принимаем ID или строку и создаём Location при необходимости.
+    """
+    if isinstance(value, Location):
+        return value
+    if value is None:
+        raise serializers.ValidationError("Укажите локацию")
+
+    # Если передан ID
+    if isinstance(value, int) or (isinstance(value, str) and str(value).isdigit()):
+        try:
+            return Location.objects.get(id=int(value))
+        except Location.DoesNotExist:
+            raise serializers.ValidationError("Локация не найдена")
+
+    # Строковое название - создаём/используем code по названию
+    if isinstance(value, str):
+        code = value.lower().replace(" ", "-")[:50]
+        location, _ = Location.objects.get_or_create(
+            code=code,
+            defaults={
+                "name_ru": value,
+                "name_en": value,
+                "name_ky": value,
+            },
+        )
+        return location
+
+    raise serializers.ValidationError("Неверный формат локации")
+
+
+def _ensure_location_id(value):
+    return _ensure_location_instance(value).id
+
 # ===================== TRIP SERIALIZERS (Заказы пассажиров) =====================
 
 class TripCreateSerializer(serializers.ModelSerializer):
@@ -63,6 +142,21 @@ class TripCreateSerializer(serializers.ModelSerializer):
         if value <= 0 or value > 50:
             raise serializers.ValidationError("Количество пассажиров от 1 до 50.")
         return value
+
+
+    def to_internal_value(self, data):
+        data = data.copy()
+        if 'from_location' in data:
+            data['from_location'] = _ensure_location_id(data.get('from_location'))
+        if 'to_location' in data:
+            data['to_location'] = _ensure_location_id(data.get('to_location'))
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["from_location"] = _ensure_location_instance(attrs.get("from_location"))
+        attrs["to_location"] = _ensure_location_instance(attrs.get("to_location"))
+        return attrs
 
     def create(self, validated_data):
         user = self.context["request"].user
@@ -216,40 +310,23 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Количество мест от 1 до 50.")
         return value
 
-    def create(self, validated_data):
-        user = self.context["request"].user
-        if not validated_data.get('contact_phone'):
-            validated_data['contact_phone'] = user.phone_number
-        return DriverAnnouncement.objects.create(driver=user, **validated_data)
+    def to_internal_value(self, data):
+        data = data.copy()
+        if 'from_location' in data:
+            data['from_location'] = _ensure_location_id(data.get('from_location'))
+        if 'to_location' in data:
+            data['to_location'] = _ensure_location_id(data.get('to_location'))
+        return super().to_internal_value(data)
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["from_location"] = _ensure_location_instance(attrs.get("from_location"))
+        attrs["to_location"] = _ensure_location_instance(attrs.get("to_location"))
+        return attrs
 
-class AnnouncementCreateSerializer(serializers.ModelSerializer):
-    """Создание объявления водителем"""
-    class Meta:
-        model = DriverAnnouncement
-        fields = (
-            "from_location", "to_location", "departure_time",
-            "available_seats", "price_per_seat", "is_negotiable",
-            "contact_phone", "comment", "car",
-            "allow_smoking", "allow_pets", "allow_big_luggage",
-            "baggage_help", "allow_children", "has_air_conditioning",
-            "extra_rules", "intermediate_stops",
-        )
-
-    def validate_departure_time(self, value):
-        if value <= timezone.now():
-            raise serializers.ValidationError("Дата/время должны быть в будущем.")
-        return value
-
-    def validate_available_seats(self, value):
-        if value <= 0 or value > 50:
-            raise serializers.ValidationError("Количество мест от 1 до 50.")
-        return value
 
     def create(self, validated_data):
         user = self.context["request"].user
-        # Убираем driver если попал в validated_data
-        validated_data.pop('driver', None)
         if not validated_data.get('contact_phone'):
             validated_data['contact_phone'] = user.phone_number
         return DriverAnnouncement.objects.create(driver=user, **validated_data)
