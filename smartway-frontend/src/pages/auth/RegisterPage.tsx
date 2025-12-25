@@ -87,7 +87,7 @@ export default function RegisterPage() {
         }}
         bodyStyle={{ padding: isMobile ? 20 : 32 }}
       >
-        <Space direction="vertical" size={24} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={24} style={{ width: '100%' }}>
           {/* Header */}
           <div style={{ textAlign: 'center' }}>
             <Title level={isMobile ? 4 : 3} style={{ marginBottom: 8 }}>
@@ -217,7 +217,7 @@ export default function RegisterPage() {
                 </Form.Item>
 
                 <Form.Item style={{ marginBottom: 0 }}>
-                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                  <Space orientation="vertical" style={{ width: '100%' }} size={12}>
                     <Button
                       type="primary"
                       htmlType="submit"

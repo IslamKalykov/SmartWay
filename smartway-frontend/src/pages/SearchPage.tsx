@@ -389,7 +389,7 @@ function FilterModal({ visible, onClose, filters, onApply, onClear, loading, t }
           <Text strong style={{ marginBottom: 12, display: 'block' }}>
             {t('search.conditions')}
           </Text>
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>🚬 {t('rideOptions.allowSmoking')}</span>
               <Switch
@@ -1046,7 +1046,7 @@ export default function SearchPage() {
 
         <Divider style={{ margin: '12px 0' }} />
 
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <EnvironmentOutlined style={{ color: '#1677ff' }} />
             <Text strong>{route}</Text>

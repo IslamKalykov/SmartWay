@@ -216,7 +216,7 @@ export default function ProfilePage() {
             </Form>
           ) : (
             <div>
-              <Space direction="vertical" size={12} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={12} style={{ width: '100%' }}>
                 <div>
                   <Text type="secondary">{t('profile.fullName')}</Text>
                   <div><Text strong>{profile?.full_name || '—'}</Text></div>

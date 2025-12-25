@@ -28,6 +28,7 @@ urlpatterns = [
     path('me/switch-role/', SwitchRoleView.as_view(), name='switch-role'),
     path('me/reviews/received/', MyReceivedReviewsView.as_view(), name='my-received-reviews'),
     path('me/reviews/written/', MyWrittenReviewsView.as_view(), name='my-written-reviews'),
+    path('<int:id>/', UserPublicProfileView.as_view(), name='user-profile-legacy'),
     
     # Public profiles
     path('<int:id>/profile/', UserPublicProfileView.as_view(), name='user-profile'),

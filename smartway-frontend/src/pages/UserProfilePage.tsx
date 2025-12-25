@@ -33,7 +33,7 @@ import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 
 import { useAuth } from '../auth/AuthContext';
-// import api from '../api/axios';
+import api from '../api/client';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -249,7 +249,7 @@ export default function UserProfilePage() {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/users/${userId}/`);
+      const response = await api.get(`/users/${userId}/`);
       setProfile(response.data);
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -261,8 +261,14 @@ export default function UserProfilePage() {
   const loadReviews = async () => {
     try {
       setReviewsLoading(true);
-      const response = await api.get(`/api/users/${userId}/reviews/`);
-      setReviews(response.data);
+      const response = await api.get(`/users/${userId}/reviews/`);
+      const data = response.data;
+      const normalizedReviews = Array.isArray(data)
+        ? data
+        : Array.isArray((data as { results?: unknown[] })?.results)
+          ? (data as { results: Review[] }).results
+          : [];
+      setReviews(normalizedReviews);
     } catch (error) {
       console.error('Error loading reviews:', error);
     } finally {
@@ -424,7 +430,7 @@ export default function UserProfilePage() {
         {reviewStats.total > 0 && (
           <div style={styles.ratingBreakdown}>
             <Divider style={{ margin: '16px 0' }} />
-            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={8}>
               <div style={styles.ratingBar}>
                 <ClockCircleOutlined style={{ color: '#667eea' }} />
                 <Text style={{ width: 120 }}>Пунктуальность</Text>

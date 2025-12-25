@@ -149,7 +149,7 @@ export default function TripDetailPage() {
 
       {/* Основная карточка */}
       <Card style={{ borderRadius: 12 }}>
-        <Space direction="vertical" size={20} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={20} style={{ width: '100%' }}>
           {/* Заголовок и статус */}
           <div>
             <div

@@ -162,7 +162,7 @@ export default function MyTripsPage() {
           onClick={() => handleOpen(trip.id)}
         >
           <Space
-            direction="vertical"
+            orientation="vertical"
             size={isMobile ? 8 : 10}
             style={{ width: '100%' }}
           >

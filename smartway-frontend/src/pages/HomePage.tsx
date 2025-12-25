@@ -34,7 +34,7 @@ export default function HomePage() {
         bodyStyle={{ padding: isMobile ? 24 : 40 }}
       >
         <Space
-          direction="vertical"
+          orientation="vertical"
           size={20}
           style={{ width: '100%', textAlign: 'center' }}
         >
@@ -65,7 +65,7 @@ export default function HomePage() {
 
           {/* Action Buttons */}
           <Space
-            direction={isMobile ? 'vertical' : 'horizontal'}
+            orientation={isMobile ? 'vertical' : 'horizontal'}
             size={12}
             style={{ width: isMobile ? '100%' : 'auto', marginTop: 8 }}
           >

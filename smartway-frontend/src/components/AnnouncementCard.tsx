@@ -75,7 +75,7 @@ export default function AnnouncementCard({
       }}
       bodyStyle={{ padding: 16 }}
     >
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
         {/* Маршрут */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <EnvironmentOutlined style={{ color: '#52c41a', fontSize: 16 }} />

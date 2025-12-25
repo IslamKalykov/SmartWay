@@ -1325,7 +1325,7 @@ export default function MyAdsPage() {
         onCancel={() => setShowCreateModal(false)}
         footer={null}
         width={600}
-        destroyOnClose
+        destroyOnHidden
         styles={{ content: { borderRadius: 16 }, header: { borderRadius: '16px 16px 0 0' } }}
       >
         {isDriver ? (
@@ -1366,10 +1366,10 @@ export default function MyAdsPage() {
         okText={t('review.submit')}
         cancelText={t('common.cancel')}
         okButtonProps={{ loading: reviewLoading }}
-        destroyOnClose
+        destroyOnHidden
       >
         {reviewTarget && (
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <Text type="secondary">
               {reviewTarget.type === 'trip'
                 ? `${reviewTarget.trip.from_location_display || reviewTarget.trip.from_location} → ${reviewTarget.trip.to_location_display || reviewTarget.trip.to_location}`
@@ -1393,7 +1393,7 @@ export default function MyAdsPage() {
               />
             </div>
 
-            <Space direction="vertical">
+            <Space orientation="vertical">
               <Checkbox checked={reviewFlags.was_on_time} onChange={e => setReviewFlags(prev => ({ ...prev, was_on_time: e.target.checked }))}>
                 {t('review.wasOnTime')}
               </Checkbox>
