@@ -418,6 +418,7 @@ class BookingSerializer(serializers.ModelSerializer):
     passenger_phone = serializers.CharField(source="passenger.phone_number", read_only=True)
     passenger_photo = serializers.ImageField(source="passenger.photo", read_only=True)
     passenger_verified = serializers.BooleanField(source="passenger.is_verified_passenger", read_only=True)
+    passenger_rating = serializers.SerializerMethodField()
     contact_telegram = serializers.SerializerMethodField()
     passenger_telegram = serializers.SerializerMethodField()
     seats_requested = serializers.IntegerField(source="seats_count", read_only=True)
@@ -431,7 +432,7 @@ class BookingSerializer(serializers.ModelSerializer):
         model = Booking
         fields = (
             "id", "announcement", "announcement_info",
-            "passenger", "passenger_name", "passenger_phone", "passenger_photo", "passenger_verified", "passenger_telegram", "contact_telegram",
+            "passenger", "passenger_name", "passenger_phone", "passenger_photo", "passenger_verified", "passenger_rating", "passenger_telegram", "contact_telegram",
             "seats_count", "seats_requested", "status", "message", "driver_comment", "contact_phone",
             "announcement_from", "announcement_to", "driver_phone",
             "has_review_from_me",
@@ -462,6 +463,10 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def get_driver_phone(self, obj):
         return obj.announcement.contact_phone or obj.announcement.driver.phone_number
+    
+    def get_passenger_rating(self, obj):
+        """Средний рейтинг пассажира"""
+        return getattr(obj.passenger, 'average_rating', None) or getattr(obj.passenger, 'average_rating_as_passenger', None)
     
     def get_has_review_from_me(self, obj):
         request = self.context.get('request')

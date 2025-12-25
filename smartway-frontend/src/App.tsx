@@ -8,6 +8,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import SearchPage from './pages/SearchPage';
 import MyAdsPage from './pages/MyAdsPage';
 import ProfilePage from './pages/profile/ProfilePage';
+import UserProfilePage from './pages/UserProfilePage';
 import { useAuth } from './auth/AuthContext';
 import './styles/global.css';
 
@@ -77,6 +78,7 @@ function App() {
         {/* Legacy routes - редирект */}
         <Route path="/trips" element={<Navigate to="/search" replace />} />
         <Route path="/my-trips" element={<Navigate to="/my-ads" replace />} />
+        <Route path="/user/:userId" element={<UserProfilePage />} />
 
         <Route
           path="*"

@@ -24,6 +24,7 @@ import {
   CheckOutlined, StopOutlined, SendOutlined,
   DollarOutlined, EnvironmentOutlined, CarOutlined,
   RightOutlined, TeamOutlined, InfoCircleOutlined,
+  StarFilled,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -63,6 +64,7 @@ type PassengerBookingSummary = {
   passenger_phone?: string;
   passenger_photo?: string;
   passenger_verified: boolean;
+  passenger_rating?: number;
   seats_count: number;
   contact_phone?: string;
   contact_telegram?: string;
@@ -186,6 +188,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 14,
     color: '#1a1a2e',
   },
+  // Карточка пассажира - обновлённая
   passengerCard: {
     background: '#fafafa',
     borderRadius: 12,
@@ -198,11 +201,52 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     marginBottom: 10,
   },
+  passengerInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
   passengerName: {
     fontSize: 15,
     fontWeight: 600,
     color: '#1a1a2e',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
   },
+  ratingBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3,
+    fontSize: 12,
+    color: '#faad14',
+    marginLeft: 8,
+  },
+  // Кнопки контактов - как в SearchPage
+  contactButtonsRow: {
+    display: 'flex',
+    gap: 8,
+  },
+  contactBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'transform 0.2s',
+  },
+  telegramBtn: {
+    background: 'linear-gradient(135deg, #0088cc 0%, #00c6ff 100%)',
+    color: '#fff',
+  },
+  phoneBtn: {
+    background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    color: '#fff',
+  },
+  // Старые стили для обратной совместимости
   contactButtons: {
     display: 'flex',
     gap: 8,
@@ -241,7 +285,152 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#555',
     fontStyle: 'italic' as const,
   },
+  clickableAvatar: {
+    cursor: 'pointer',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+  },
 };
+
+// ==================== Компонент контактных кнопок ====================
+interface ContactButtonsProps {
+  phone?: string;
+  telegram?: string;
+  size?: 'small' | 'default';
+}
+
+function ContactButtons({ phone, telegram, size = 'default' }: ContactButtonsProps) {
+  const cleanPhone = phone?.replace(/\D/g, '');
+  const btnSize = size === 'small' ? 36 : 40;
+  const iconSize = size === 'small' ? 16 : 18;
+  
+  const handleTelegram = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (telegram) {
+      window.open(`https://t.me/${telegram.replace('@', '')}`, '_blank');
+    } else if (cleanPhone) {
+      window.open(`https://t.me/+${cleanPhone}`, '_blank');
+    }
+  };
+
+  const handleCall = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (cleanPhone) {
+      window.location.href = `tel:+${cleanPhone}`;
+    }
+  };
+
+  return (
+    <div style={styles.contactButtonsRow}>
+      {(telegram || cleanPhone) && (
+        <button
+          onClick={handleTelegram}
+          style={{
+            ...styles.contactBtn,
+            ...styles.telegramBtn,
+            width: btnSize,
+            height: btnSize,
+          }}
+          title="Telegram"
+        >
+          <SendOutlined style={{ fontSize: iconSize }} />
+        </button>
+      )}
+      {cleanPhone && (
+        <button
+          onClick={handleCall}
+          style={{
+            ...styles.contactBtn,
+            ...styles.phoneBtn,
+            width: btnSize,
+            height: btnSize,
+          }}
+          title="Позвонить"
+        >
+          <PhoneOutlined style={{ fontSize: iconSize }} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ==================== Компонент кликабельного пользователя ====================
+interface UserProfileLinkProps {
+  userId: number;
+  userName: string;
+  userPhoto?: string;
+  userRating?: number;
+  verified?: boolean;
+  showAvatar?: boolean;
+  avatarSize?: number;
+  onClick?: () => void;
+}
+
+function UserProfileLink({
+  userId,
+  userName,
+  userPhoto,
+  userRating,
+  verified,
+  showAvatar = true,
+  avatarSize = 44,
+  onClick,
+}: UserProfileLinkProps) {
+  const navigate = useNavigate();
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onClick) {
+      onClick();
+    } else {
+      navigate(`/user/${userId}`);
+    }
+  };
+
+  return (
+    <Space
+      size={10}
+      style={{ cursor: 'pointer' }}
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {showAvatar && (
+        <Avatar
+          src={userPhoto}
+          icon={<UserOutlined />}
+          size={avatarSize}
+          style={{
+            ...styles.clickableAvatar,
+            transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+            boxShadow: isHovered ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          }}
+        />
+      )}
+      <div>
+        <div
+          style={{
+            ...styles.passengerName,
+            color: isHovered ? '#667eea' : '#1a1a2e',
+          }}
+        >
+          {userName}
+          {userRating !== undefined && userRating > 0 && (
+            <span style={styles.ratingBadge}>
+              <StarFilled /> {userRating.toFixed(1)}
+            </span>
+          )}
+        </div>
+        {verified && (
+          <Tag color="green" style={{ margin: 0, fontSize: 11 }}>
+            <CheckCircleOutlined /> Верифицирован
+          </Tag>
+        )}
+      </div>
+    </Space>
+  );
+}
 
 // ==================== Компактная карточка объявления ====================
 interface AnnouncementCompactCardProps {
@@ -350,6 +539,8 @@ function TripDetailModal({
   t,
   isCompleted = false,
 }: TripDetailModalProps) {
+  const navigate = useNavigate();
+  
   if (!announcement) return null;
 
   const pendingBookings = bookings.filter(b => b.status === 'pending');
@@ -358,7 +549,6 @@ function TripDetailModal({
   // Группировка подтверждённых по пассажирам
   const confirmedSummary = confirmedBookings.reduce<PassengerBookingSummary[]>((acc, booking) => {
     const existing = acc.find(item => item.passenger === booking.passenger);
-    // Берём telegram из contact_telegram или passenger_telegram
     const bookingTelegram = (booking as any).contact_telegram || (booking as any).passenger_telegram;
     
     if (existing) {
@@ -376,6 +566,7 @@ function TripDetailModal({
         passenger_phone: booking.passenger_phone,
         passenger_photo: booking.passenger_photo,
         passenger_verified: booking.passenger_verified,
+        passenger_rating: (booking as any).passenger_rating,
         seats_count: booking.seats_count,
         contact_phone: booking.contact_phone,
         contact_telegram: bookingTelegram,
@@ -475,59 +666,34 @@ function TripDetailModal({
           
           {pendingBookings.map(booking => {
             const phone = booking.contact_phone || booking.passenger_phone;
-            const telegram = (booking as any).contact_telegram || booking.passenger_telegram;
-            const cleanPhone = phone?.replace(/\D/g, '');
+            const telegram = (booking as any).contact_telegram || (booking as any).passenger_telegram;
             
             return (
               <div key={booking.id} style={styles.passengerCard}>
                 <div style={styles.passengerHeader}>
-                  <Space>
-                    <Avatar src={booking.passenger_photo} icon={<UserOutlined />} />
-                    <div>
-                      <div style={styles.passengerName}>{booking.passenger_name}</div>
-                      <Space size={4}>
-                        <Tag style={styles.seatsTag}>
-                          {booking.seats_count} {t('trip.seats')}
-                        </Tag>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {dayjs(booking.created_at).format('DD.MM HH:mm')}
-                        </Text>
-                      </Space>
-                    </div>
-                  </Space>
+                  <UserProfileLink
+                    userId={booking.passenger}
+                    userName={booking.passenger_name}
+                    userPhoto={booking.passenger_photo}
+                    userRating={(booking as any).passenger_rating}
+                    verified={booking.passenger_verified}
+                    avatarSize={40}
+                  />
+                  <ContactButtons phone={phone} telegram={telegram} size="small" />
                 </div>
+                
+                <Space size={4} style={{ marginBottom: 8 }}>
+                  <Tag style={styles.seatsTag}>
+                    {booking.seats_count} {t('trip.seats')}
+                  </Tag>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {dayjs(booking.created_at).format('DD.MM HH:mm')}
+                  </Text>
+                </Space>
                 
                 {booking.message && (
                   <div style={styles.bookingMessage}>"{booking.message}"</div>
                 )}
-                
-                <div style={styles.contactButtons}>
-                  {telegram && (
-                    <Button
-                      size="small"
-                      icon={<SendOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(`https://t.me/${telegram.replace('@', '')}`);
-                      }}
-                      style={{ color: '#0088cc' }}
-                    >
-                      Telegram
-                    </Button>
-                  )}
-                  {phone && (
-                    <Button
-                      size="small"
-                      icon={<PhoneOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        cleanPhone && window.open(`tel:+${cleanPhone}`);
-                      }}
-                    >
-                      {t('trip.call')}
-                    </Button>
-                  )}
-                </div>
                 
                 <div style={styles.actionButtons}>
                   <Button
@@ -563,75 +729,51 @@ function TripDetailModal({
           {confirmedSummary.map(passenger => {
             const phone = passenger.contact_phone || passenger.passenger_phone;
             const telegram = passenger.contact_telegram;
-            const cleanPhone = phone?.replace(/\D/g, '');
             const alreadyReviewed = isBookingReviewed(passenger.bookingIds, passenger.has_review_from_me);
             
             return (
               <div key={passenger.passenger} style={styles.passengerCard}>
                 <div style={styles.passengerHeader}>
-                  <Space>
-                    <Avatar src={passenger.passenger_photo} icon={<UserOutlined />} size={44} />
-                    <div>
-                      <div style={styles.passengerName}>{passenger.passenger_name}</div>
-                      <Space size={4}>
-                        <Tag style={styles.seatsTag}>
-                          {passenger.seats_count} {t('trip.seats')}
-                        </Tag>
-                        <Tag color={isCompleted ? 'green' : 'blue'}>
-                          {isCompleted ? t('booking.status.completed') : t('booking.status.confirmed')}
-                        </Tag>
-                        {alreadyReviewed && (
-                          <Tag color="purple" icon={<CheckCircleOutlined />}>
-                            {t('review.alreadyLeft')}
-                          </Tag>
-                        )}
-                      </Space>
-                    </div>
-                  </Space>
+                  <UserProfileLink
+                    userId={passenger.passenger}
+                    userName={passenger.passenger_name}
+                    userPhoto={passenger.passenger_photo}
+                    userRating={passenger.passenger_rating}
+                    verified={passenger.passenger_verified}
+                    avatarSize={44}
+                  />
+                  <ContactButtons phone={phone} telegram={telegram} />
                 </div>
+                
+                <Space size={4} style={{ marginTop: 8 }}>
+                  <Tag style={styles.seatsTag}>
+                    {passenger.seats_count} {t('trip.seats')}
+                  </Tag>
+                  <Tag color={isCompleted ? 'green' : 'blue'}>
+                    {isCompleted ? t('booking.status.completed') : t('booking.status.confirmed')}
+                  </Tag>
+                  {alreadyReviewed && (
+                    <Tag color="purple" icon={<CheckCircleOutlined />}>
+                      {t('review.alreadyLeft')}
+                    </Tag>
+                  )}
+                </Space>
                 
                 {passenger.message && (
                   <div style={styles.bookingMessage}>"{passenger.message}"</div>
                 )}
                 
-                <div style={styles.contactButtons}>
-                  {telegram && (
+                {isCompleted && !alreadyReviewed && (
+                  <div style={{ marginTop: 12 }}>
                     <Button
-                      size="small"
-                      icon={<SendOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(`https://t.me/${telegram.replace('@', '')}`);
-                      }}
-                      style={{ color: '#0088cc' }}
-                    >
-                      Telegram
-                    </Button>
-                  )}
-                  {phone && (
-                    <Button
-                      size="small"
-                      icon={<PhoneOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        cleanPhone && window.open(`tel:+${cleanPhone}`);
-                      }}
-                    >
-                      {t('trip.call')}
-                    </Button>
-                  )}
-                  
-                  {isCompleted && !alreadyReviewed && (
-                    <Button
-                      size="small"
                       type="primary"
-                      icon={<SendOutlined />}
+                      icon={<StarFilled />}
                       onClick={() => onReviewPassenger(passenger)}
                     >
                       {t('booking.ratePassenger')}
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -834,24 +976,13 @@ export default function MyAdsPage() {
       message.success(t('review.submitted'));
 
       if (reviewTarget.type === 'booking') {
-        const bookingId = reviewTarget.booking.id;
-        setReviewedBookingIds(prev => new Set([...prev, bookingId]));
-        // Также обновляем локальное состояние bookings чтобы не ждать сервер
-        setBookings(prev => prev.map(b => 
-          b.id === bookingId ? { ...b, has_review_from_me: true } : b
-        ));
+        setReviewedBookingIds(prev => new Set([...prev, reviewTarget.booking.id]));
       } else if (reviewTarget.type === 'trip') {
-        const tripId = reviewTarget.trip.id;
-        setReviewedTripIds(prev => new Set([...prev, tripId]));
-        // Также обновляем локальное состояние trips
-        setTrips(prev => prev.map(t => 
-          t.id === tripId ? { ...t, has_review_from_me: true } : t
-        ));
+        setReviewedTripIds(prev => new Set([...prev, reviewTarget.trip.id]));
       }
 
       setReviewTarget(null);
       setReviewText('');
-      // Перезагружаем данные в фоне, но UI уже обновлён
       loadData();
     } catch (error: any) {
       message.error(error?.response?.data?.detail || t('errors.serverError'));
@@ -923,8 +1054,11 @@ export default function MyAdsPage() {
     const roleLabel = trip.my_role === 'driver' ? t('trip.driver') : trip.my_role === 'passenger' ? t('trip.passenger') : t('tripStatus.completed');
     const counterpartLabel = trip.my_role === 'driver' ? t('trip.passenger') : t('trip.driver');
     const counterpartName = trip.my_role === 'driver' ? trip.passenger_name : trip.driver_name;
+    const counterpartId = trip.my_role === 'driver' ? trip.passenger : trip.driver;
+    const counterpartPhoto = trip.my_role === 'driver' ? (trip as any).passenger_photo : (trip as any).driver_photo;
+    const counterpartRating = trip.my_role === 'driver' ? (trip as any).passenger_rating : (trip as any).driver_rating;
     const phone = trip.my_role === 'driver' ? trip.passenger_phone : trip.driver_phone || trip.contact_phone;
-    const cleanPhone = phone?.replace(/\D/g, '');
+    const telegram = trip.my_role === 'driver' ? (trip as any).passenger_telegram : (trip as any).driver_telegram;
     const alreadyReviewed = isTripReviewed(trip.id, trip.has_review_from_me);
     const canReview = trip.status === 'completed' && !alreadyReviewed && !!(trip.driver || trip.passenger);
     const statusText = t(`tripStatus.${trip.status}`, { defaultValue: trip.status });
@@ -948,15 +1082,15 @@ export default function MyAdsPage() {
           <Text type="secondary">{departureLabel}</Text>
         </div>
 
-        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <Space>
+        <div style={{ marginTop: 12 }}>
+          <Space style={{ marginBottom: 8 }}>
             <EnvironmentOutlined style={{ color: '#1677ff' }} />
             <Text strong>
               {trip.from_location_display || trip.from_location} → {trip.to_location_display || trip.to_location}
             </Text>
           </Space>
 
-          <Space size={12} wrap>
+          <Space size={12} wrap style={{ marginBottom: 12 }}>
             <Tag icon={<UserOutlined />}>{trip.passengers_count} {trip.passengers_count === 1 ? t('trip.seat') : t('trip.seats')}</Tag>
             {trip.price ? (
               <Tag color="green" icon={<DollarOutlined />}>{trip.price} сом</Tag>
@@ -965,16 +1099,32 @@ export default function MyAdsPage() {
             )}
           </Space>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text type="secondary">
-              {counterpartLabel}: {counterpartName || t('common.noData')}
-            </Text>
-            {phone && (
-              <Button size="small" icon={<PhoneOutlined />} onClick={() => cleanPhone && window.open(`tel:+${cleanPhone}`)}>
-                {t('trip.call')}
-              </Button>
-            )}
-          </div>
+          {/* Карточка контрагента с профилем и контактами */}
+          {counterpartId && (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              padding: 12,
+              background: '#f8f9fa',
+              borderRadius: 10,
+              marginBottom: 8,
+            }}>
+              <div>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                  {counterpartLabel}
+                </Text>
+                <UserProfileLink
+                  userId={counterpartId}
+                  userName={counterpartName || t('common.noData')}
+                  userPhoto={counterpartPhoto}
+                  userRating={counterpartRating}
+                  avatarSize={36}
+                />
+              </div>
+              <ContactButtons phone={phone} telegram={telegram} size="small" />
+            </div>
+          )}
 
           {trip.comment && <Text type="secondary" style={{ display: 'block' }}>{trip.comment}</Text>}
         </div>
@@ -983,7 +1133,7 @@ export default function MyAdsPage() {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           {canReview ? (
-            <Button type="primary" icon={<SendOutlined />} onClick={() => handleOpenReview(trip)}>
+            <Button type="primary" icon={<StarFilled />} onClick={() => handleOpenReview(trip)}>
               {t('review.leaveReview')}
             </Button>
           ) : (

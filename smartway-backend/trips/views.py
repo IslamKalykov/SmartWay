@@ -51,7 +51,6 @@ class TripViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_permissions(self):
-        # публичные экшены
         if self.action in ['available']:
             return [AllowAny()]
         return [IsAuthenticated()]
@@ -62,6 +61,11 @@ class TripViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return TripListSerializer
         return TripDetailSerializer
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
     
     def get_queryset(self):
         return Trip.objects.select_related('passenger', 'driver', 'car').order_by('-created_at')
@@ -75,9 +79,7 @@ class TripViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], url_path='my')
     def my(self, request):
-        """
-        GET /api/trips/my/ - мои заказы как пассажира
-        """
+        """GET /api/trips/my/ - мои заказы как пассажира"""
         qs = Trip.objects.filter(
             passenger=request.user
         ).select_related('passenger', 'driver', 'car').order_by('-created_at')
@@ -102,7 +104,7 @@ class TripViewSet(viewsets.ModelViewSet):
             created_at__lte=cutoff_time
         ).exclude(passenger=user).order_by('departure_time')
         
-        serializer = TripListSerializer(qs, many=True)
+        serializer = TripListSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'], url_path='my-active')
@@ -122,7 +124,7 @@ class TripViewSet(viewsets.ModelViewSet):
             Q(driver=request.user) | Q(passenger=request.user),
             status__in=['completed', 'cancelled']
         ).order_by('-updated_at')[:50]
-        serializer = TripListSerializer(qs, many=True)
+        serializer = TripListSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
@@ -216,12 +218,9 @@ class TripViewSet(viewsets.ModelViewSet):
         
         return Response(TripDetailSerializer(trip, context={'request': request}).data)
     
-    
     @action(detail=False, methods=['get'], url_path='my-driver')
     def my_driver_trips(self, request):
-        """
-        Поездки, которые водитель принял (его активные/исторические заказы)
-        """
+        """Поездки, которые водитель принял"""
         qs = Trip.objects.filter(driver=request.user).select_related(
             'driver', 'passenger', 'car'
         ).order_by('-created_at')
@@ -230,20 +229,16 @@ class TripViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-
 # ===================== ANNOUNCEMENT VIEWS (Объявления водителей) =====================
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
     """CRUD для объявлений водителей"""
     permission_classes = [IsAuthenticated]
     
-    # ===== ДОБАВЬТЕ ЭТО =====
     def get_permissions(self):
-        # Публичный доступ к списку объявлений
         if self.action in ['available', 'list', 'retrieve']:
             return [AllowAny()]
         return [IsAuthenticated()]
-    # ========================
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -251,6 +246,11 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return AnnouncementListSerializer
         return AnnouncementDetailSerializer
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
     
     def get_queryset(self):
         return DriverAnnouncement.objects.select_related('driver', 'car').order_by('-created_at')
@@ -279,11 +279,9 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             departure_time__gt=now,
         ).order_by('departure_time')
         
-        # Исключаем свои объявления только для авторизованных
         if request.user.is_authenticated:
             qs = qs.exclude(driver=request.user)
         
-        # Фильтры
         from_loc = request.query_params.get('from')
         to_loc = request.query_params.get('to')
         seats = request.query_params.get('seats')
@@ -299,19 +297,18 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
                 pass
         
         serializer = AnnouncementListSerializer(qs, many=True, context={'request': request})
-
         return Response(serializer.data)
     
     @action(detail=True, methods=['get'])
     def bookings(self, request, pk=None):
-        """GET /api/announcements/{id}/bookings/ - бронирования на это объявление (для водителя)"""
+        """GET /api/announcements/{id}/bookings/ - бронирования на это объявление"""
         announcement = self.get_object()
         
         if announcement.driver != request.user:
             return Response({"detail": "Только владелец видит бронирования."}, status=403)
         
         bookings = announcement.bookings.all().order_by('-created_at')
-        serializer = BookingSerializer(bookings, many=True)
+        serializer = BookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
@@ -328,7 +325,6 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         announcement.status = 'cancelled'
         announcement.save(update_fields=['status', 'updated_at'])
         
-        # Отменяем все бронирования и уведомляем пассажиров
         affected_bookings = announcement.bookings.filter(
             status__in=['pending', 'confirmed']
         ).select_related(
@@ -356,10 +352,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         announcement.status = 'completed'
         announcement.save(update_fields=['status', 'updated_at'])
         
-        # Завершаем подтверждённые бронирования
         announcement.bookings.filter(status='confirmed').update(status='completed')
         
-        # Обновляем статистику
         confirmed_bookings = announcement.bookings.filter(status='completed')
         for booking in confirmed_bookings:
             booking.passenger.trips_completed_as_passenger += 1
@@ -369,7 +363,6 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         announcement.driver.trips_completed_as_driver += 1
         announcement.driver.save(update_fields=['trips_completed_as_driver'])
         if confirmed_bookings.exists():
-            # Отдельно уведомим водителя, что можно оценить пассажиров
             send_booking_completed_notification(confirmed_bookings.first(), notify_passenger=False)
         
         return Response(AnnouncementDetailSerializer(announcement, context={'request': request}).data)
@@ -387,14 +380,13 @@ class BookingViewSet(viewsets.ModelViewSet):
         return BookingSerializer
 
     def get_serializer_context(self):
-        """Всегда передаём request в context"""
+        """Всегда передаём request в context - КРИТИЧНО для has_review_from_me"""
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
     
     def get_queryset(self):
         user = self.request.user
-        # Пассажир видит свои бронирования, водитель - бронирования на свои объявления
         return Booking.objects.filter(
             Q(passenger=user) | Q(announcement__driver=user)
         ).select_related(
@@ -405,7 +397,6 @@ class BookingViewSet(viewsets.ModelViewSet):
             'announcement__to_location',
         ).order_by('-created_at')
 
-
     def perform_create(self, serializer):
         booking = serializer.save()
         send_booking_created_notification(booking)
@@ -413,16 +404,29 @@ class BookingViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my(self, request):
         """GET /api/bookings/my/ - мои бронирования как пассажира"""
-        qs = Booking.objects.filter(passenger=request.user).order_by('-created_at')
+        qs = Booking.objects.filter(passenger=request.user).select_related(
+            'passenger',
+            'announcement',
+            'announcement__driver',
+            'announcement__from_location',
+            'announcement__to_location',
+        ).order_by('-created_at')
         serializer = BookingSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def incoming(self, request):
-        """GET /api/bookings/incoming/ - входящие бронирования на мои объявления (для водителя)"""
+        """GET /api/bookings/incoming/ - входящие бронирования на мои объявления"""
         qs = Booking.objects.filter(
             announcement__driver=request.user
+        ).select_related(
+            'passenger',
+            'announcement',
+            'announcement__driver',
+            'announcement__from_location',
+            'announcement__to_location',
         ).order_by('-created_at')
+        # КРИТИЧНО: передаём context с request для has_review_from_me
         serializer = BookingSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
     
@@ -444,13 +448,13 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.status = 'confirmed'
         booking.save(update_fields=['status', 'updated_at'])
         
-        # Обновляем количество занятых мест
         announcement.booked_seats += booking.seats_count
         if announcement.free_seats <= 0:
             announcement.status = 'full'
         announcement.save(update_fields=['booked_seats', 'status', 'updated_at'])
         send_booking_status_notification(booking)
-        return Response(BookingSerializer(booking).data)
+        # ИСПРАВЛЕНО: добавлен context
+        return Response(BookingSerializer(booking, context={'request': request}).data)
     
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
@@ -467,7 +471,8 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.driver_comment = request.data.get('comment', '')
         booking.save(update_fields=['status', 'driver_comment', 'updated_at'])
         send_booking_status_notification(booking)
-        return Response(BookingSerializer(booking).data)
+        # ИСПРАВЛЕНО: добавлен context
+        return Response(BookingSerializer(booking, context={'request': request}).data)
     
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
@@ -480,7 +485,6 @@ class BookingViewSet(viewsets.ModelViewSet):
         if booking.status not in ['pending', 'confirmed']:
             return Response({"detail": "Это бронирование нельзя отменить."}, status=400)
         
-        # Если было подтверждено - возвращаем места
         if booking.status == 'confirmed':
             announcement = booking.announcement
             announcement.booked_seats -= booking.seats_count
@@ -491,7 +495,8 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.status = 'cancelled'
         booking.save(update_fields=['status', 'updated_at'])
         send_booking_status_notification(booking)
-        return Response(BookingSerializer(booking).data)
+        # ИСПРАВЛЕНО: добавлен context
+        return Response(BookingSerializer(booking, context={'request': request}).data)
 
 
 # ===================== REVIEW VIEWS =====================
@@ -506,31 +511,47 @@ class ReviewViewSet(viewsets.ModelViewSet):
             return ReviewCreateSerializer
         return ReviewSerializer
     
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
     def get_queryset(self):
-        return Review.objects.select_related('author', 'recipient').order_by('-created_at')
+        return Review.objects.select_related('author', 'recipient', 'booking', 'trip').order_by('-created_at')
     
     @action(detail=False, methods=['get'])
     def my_received(self, request):
         """GET /api/reviews/my_received/ - отзывы обо мне"""
-        qs = Review.objects.filter(recipient=request.user).order_by('-created_at')
-        serializer = ReviewSerializer(qs, many=True)
+        qs = Review.objects.filter(recipient=request.user).select_related(
+            'author', 'recipient', 'booking', 'trip'
+        ).order_by('-created_at')
+        serializer = ReviewSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def my_written(self, request):
         """GET /api/reviews/my_written/ - мои отзывы"""
-        qs = Review.objects.filter(author=request.user).order_by('-created_at')
-        serializer = ReviewSerializer(qs, many=True)
+        qs = Review.objects.filter(author=request.user).select_related(
+            'author', 'recipient', 'booking', 'trip'
+        ).order_by('-created_at')
+        serializer = ReviewSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
 
 
-# ===================== LEGACY VIEWS (для совместимости) =====================
+# ===================== LEGACY VIEWS =====================
 
 class UserReviewsListAPIView(generics.ListAPIView):
     """GET /api/users/{user_id}/reviews/ - отзывы о пользователе"""
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
     def get_queryset(self):
         user_id = self.kwargs.get('user_id')
-        return Review.objects.filter(recipient_id=user_id).order_by('-created_at')
+        return Review.objects.filter(recipient_id=user_id).select_related(
+            'author', 'recipient', 'booking', 'trip'
+        ).order_by('-created_at')

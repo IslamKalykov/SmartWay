@@ -1,159 +1,156 @@
 // src/pages/UserProfilePage.tsx
 import { useState, useEffect } from 'react';
 import {
-  Card, Typography, Avatar, Spin, Tag, Space, Divider, Rate, List, Empty,
-  Button, Modal, Form, Input, message
+  Card,
+  Typography,
+  Avatar,
+  Tag,
+  Rate,
+  Spin,
+  Empty,
+  Divider,
+  Space,
+  Button,
+  List,
+  Progress,
 } from 'antd';
 import {
-  UserOutlined, CarOutlined, SafetyCertificateOutlined, StarOutlined,
-  PhoneOutlined, SendOutlined, ArrowLeftOutlined
+  UserOutlined,
+  StarFilled,
+  CheckCircleOutlined,
+  CarOutlined,
+  PhoneOutlined,
+  SendOutlined,
+  ArrowLeftOutlined,
+  SafetyCertificateOutlined,
+  CalendarOutlined,
+  LikeOutlined,
+  ClockCircleOutlined,
+  SmileOutlined,
 } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 
 import { useAuth } from '../auth/AuthContext';
-import { getUserReviews, createReview, type Review } from '../api/trips';
-import api from '../api/client';
+// import api from '../api/axios';
 
 const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
 
-const calculateAverageRating = (list: Review[]): number | null => {
-  if (!list || list.length === 0) return null;
-  const sum = list.reduce((acc, review) => acc + (review.rating || 0), 0);
-  return Number((sum / list.length).toFixed(1));
-};
-
-// ==================== Типы ====================
-interface CarInfo {
-  id: number;
-  brand: string;
-  model: string;
-  color: string;
-  plate_number: string;
-  year?: number;
-  passenger_seats?: number;
-  is_verified?: boolean;
-}
-
-interface PublicUser {
+interface UserProfile {
   id: number;
   full_name: string;
   phone_number?: string;
   photo?: string;
-  bio?: string;
-  city?: string;
   telegram_username?: string;
-  
   is_driver: boolean;
-  is_verified_driver: boolean;
-  is_verified_passenger: boolean;
-  
-  trips_completed_as_driver: number;
-  trips_completed_as_passenger: number;
-  average_rating: number | null;
-  
-  cars?: CarInfo[];
-  created_at?: string;
+  is_verified_driver?: boolean;
+  is_verified_passenger?: boolean;
+  average_rating?: number;
+  average_rating_as_driver?: number;
+  average_rating_as_passenger?: number;
+  trips_completed_as_driver?: number;
+  trips_completed_as_passenger?: number;
+  reviews_count?: number;
+  date_joined?: string;
+  cars?: Array<{
+    id: number;
+    brand: string;
+    model: string;
+    color: string;
+    year?: number;
+    plate_number?: string;
+    is_verified?: boolean;
+  }>;
+}
+
+interface Review {
+  id: number;
+  author_name: string;
+  author_photo?: string;
+  rating: number;
+  text: string;
+  was_on_time?: boolean;
+  was_polite?: boolean;
+  car_was_clean?: boolean;
+  created_at: string;
 }
 
 // ==================== Стили ====================
-const styles = {
+const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    maxWidth: 600,
+    maxWidth: 800,
     margin: '0 auto',
+    padding: '20px 16px',
+    paddingBottom: 100,
   },
-  backButton: {
-    marginBottom: 16,
-  },
-  profileCard: {
-    borderRadius: 16,
-    marginBottom: 16,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-  },
-  avatarSection: {
+  header: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 16,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  avatarContainer: {
+    position: 'relative',
   },
   avatar: {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    border: '3px solid #fff',
+    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
   },
-  nameSection: {
+  userInfo: {
     flex: 1,
   },
   userName: {
-    margin: 0,
-    fontSize: 22,
-    fontWeight: 600,
+    fontSize: 24,
+    fontWeight: 700,
+    marginBottom: 4,
+    color: '#1a1a2e',
   },
-  statsSection: {
+  ratingBlock: {
     display: 'flex',
-    gap: 24,
-    flexWrap: 'wrap' as const,
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
-  statItem: {
+  ratingValue: {
+    fontSize: 20,
+    fontWeight: 600,
+    color: '#faad14',
+  },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 12,
+    marginTop: 20,
+  },
+  statCard: {
+    background: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
     textAlign: 'center' as const,
   },
   statValue: {
-    fontSize: 20,
-    fontWeight: 600,
+    fontSize: 24,
+    fontWeight: 700,
+    color: '#667eea',
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     color: '#888',
   },
-  contactButtons: {
-    display: 'flex',
-    gap: 10,
-    marginTop: 16,
-  },
-  contactBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 10,
-    fontWeight: 500,
-  },
-  telegramBtn: {
-    background: 'linear-gradient(135deg, #0088cc 0%, #00c6ff 100%)',
-    border: 'none',
-    color: '#fff',
-  },
-  phoneBtn: {
-    background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
-    border: 'none',
-    color: '#fff',
+  section: {
+    marginTop: 24,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 600,
     marginBottom: 12,
-  },
-  reviewCard: {
-    marginBottom: 12,
-    borderRadius: 12,
-    border: '1px solid #f0f0f0',
-  },
-  reviewHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  reviewAuthor: {
-    flex: 1,
-  },
-  writeReviewBtn: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    border: 'none',
-    color: '#fff',
-    fontWeight: 600,
-    height: 44,
-    borderRadius: 10,
-    width: '100%',
-    marginBottom: 16,
+    gap: 8,
+    color: '#1a1a2e',
   },
   carCard: {
     display: 'flex',
@@ -165,8 +162,8 @@ const styles = {
     marginBottom: 8,
   },
   carIcon: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: 10,
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     display: 'flex',
@@ -175,75 +172,101 @@ const styles = {
     color: '#fff',
     fontSize: 20,
   },
+  reviewCard: {
+    background: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    border: '1px solid #f0f0f0',
+  },
+  reviewHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  reviewAuthor: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  contactBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  telegramBtn: {
+    background: 'linear-gradient(135deg, #0088cc 0%, #00c6ff 100%)',
+    color: '#fff',
+  },
+  phoneBtn: {
+    background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    color: '#fff',
+  },
+  backButton: {
+    marginBottom: 16,
+  },
+  badgesRow: {
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap' as const,
+    marginTop: 8,
+  },
+  ratingBreakdown: {
+    marginTop: 16,
+  },
+  ratingBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
 };
 
-// ==================== API ====================
-
-async function getUserProfile(userId: number): Promise<PublicUser> {
-  const response = await api.get(`/users/${userId}/profile/`);
-  return response.data;
-}
-
-// ==================== Компонент ====================
-
 export default function UserProfilePage() {
-  const { t } = useTranslation();
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const { user: currentUser, isAuth } = useAuth();
-
+  const { t } = useTranslation();
+  const { user: currentUser } = useAuth();
+  
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<PublicUser | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewLoading, setReviewLoading] = useState(false);
-
-  const [form] = Form.useForm();
-
-  const isOwnProfile = currentUser?.id === Number(userId);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     if (userId) {
-      loadData();
+      loadProfile();
+      loadReviews();
     }
   }, [userId]);
 
-  const loadData = async () => {
+  const loadProfile = async () => {
     try {
       setLoading(true);
-      const [profileData, reviewsData] = await Promise.all([
-        getUserProfile(Number(userId)),
-        getUserReviews(Number(userId)),
-      ]);
-      setProfile(profileData);
-      setReviews(reviewsData);
+      const response = await api.get(`/api/users/${userId}/`);
+      setProfile(response.data);
     } catch (error) {
-      console.error(error);
-      message.error(t('errors.serverError'));
+      console.error('Error loading profile:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmitReview = async (values: { rating: number; text: string }) => {
-    if (!userId) return;
-
+  const loadReviews = async () => {
     try {
-      setReviewLoading(true);
-      await createReview({
-        recipient: Number(userId),
-        rating: values.rating,
-        text: values.text,
-      });
-      message.success(t('review.submitted'));
-      setShowReviewModal(false);
-      form.resetFields();
-      loadData();
-    } catch (error: any) {
-      const errorMsg = error?.response?.data?.detail || error?.response?.data?.error;
-      message.error(errorMsg || t('errors.serverError'));
+      setReviewsLoading(true);
+      const response = await api.get(`/api/users/${userId}/reviews/`);
+      setReviews(response.data);
+    } catch (error) {
+      console.error('Error loading reviews:', error);
     } finally {
-      setReviewLoading(false);
+      setReviewsLoading(false);
     }
   };
 
@@ -263,288 +286,265 @@ export default function UserProfilePage() {
     }
   };
 
-  const averageRating = profile?.average_rating ?? calculateAverageRating(reviews);
-  const formattedRating = averageRating !== null ? averageRating.toFixed(1) : '—';
-  
+  // Подсчёт статистики отзывов
+  const reviewStats = reviews.reduce(
+    (acc, review) => {
+      acc.total++;
+      if (review.was_on_time) acc.onTime++;
+      if (review.was_polite) acc.polite++;
+      if (review.car_was_clean) acc.cleanCar++;
+      return acc;
+    },
+    { total: 0, onTime: 0, polite: 0, cleanCar: 0 }
+  );
+
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: 50 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
         <Spin size="large" />
-        <div style={{ marginTop: 16 }}>
-          <Text type="secondary">{t('common.loading')}</Text>
-        </div>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div style={{ textAlign: 'center', padding: 50 }}>
-        <Empty description={t('profile.notFound')} />
-        <Button onClick={() => navigate(-1)} style={{ marginTop: 16 }}>
-          {t('common.back')}
+      <div style={styles.container}>
+        <Button 
+          icon={<ArrowLeftOutlined />} 
+          onClick={() => navigate(-1)}
+          style={styles.backButton}
+        >
+          Назад
         </Button>
+        <Empty description="Пользователь не найден" />
       </div>
     );
   }
 
+  const isOwnProfile = currentUser?.id === profile.id;
+  const rating = profile.average_rating || profile.average_rating_as_driver || profile.average_rating_as_passenger || 0;
+  const tripsCount = (profile.trips_completed_as_driver || 0) + (profile.trips_completed_as_passenger || 0);
+  const memberSince = profile.date_joined ? dayjs(profile.date_joined).format('MMMM YYYY') : null;
+
   return (
     <div style={styles.container}>
       {/* Кнопка назад */}
-      <Button
-        type="text"
-        icon={<ArrowLeftOutlined />}
+      <Button 
+        icon={<ArrowLeftOutlined />} 
         onClick={() => navigate(-1)}
         style={styles.backButton}
+        type="text"
       >
-        {t('common.back')}
+        Назад
       </Button>
 
-      {/* Основная информация */}
-      <Card style={styles.profileCard}>
-        <div style={styles.avatarSection}>
-          <Avatar
-            size={80}
-            icon={<UserOutlined />}
-            src={profile.photo}
-            style={styles.avatar}
-          />
-          <div style={styles.nameSection}>
-            <Title level={4} style={styles.userName}>
-              {profile.full_name || t('profile.anonymous')}
-            </Title>
-            <Space size={8} wrap style={{ marginTop: 8 }}>
+      {/* Шапка профиля */}
+      <Card style={{ borderRadius: 16, marginBottom: 16 }}>
+        <div style={styles.header}>
+          <div style={styles.avatarContainer}>
+            <Avatar
+              src={profile.photo}
+              icon={<UserOutlined />}
+              size={80}
+              style={styles.avatar}
+            />
+          </div>
+          
+          <div style={styles.userInfo}>
+            <div style={styles.userName}>{profile.full_name}</div>
+            
+            {rating > 0 && (
+              <div style={styles.ratingBlock}>
+                <StarFilled style={{ color: '#faad14', fontSize: 18 }} />
+                <span style={styles.ratingValue}>{rating.toFixed(1)}</span>
+                <Text type="secondary">({reviews.length} отзывов)</Text>
+              </div>
+            )}
+            
+            <div style={styles.badgesRow}>
               {profile.is_driver && (
-                <Tag color="blue">
-                  <CarOutlined /> {t('trip.driver')}
-                </Tag>
-              )}
-              {!profile.is_driver && (
-                <Tag color="geekblue">
-                  <UserOutlined /> {t('trip.passenger')}
-                </Tag>
+                <Tag color="blue" icon={<CarOutlined />}>Водитель</Tag>
               )}
               {profile.is_verified_driver && (
-                <Tag color="green" icon={<SafetyCertificateOutlined />}>
-                  {t('profile.verifiedDriver')}
-                </Tag>
+                <Tag color="green" icon={<SafetyCertificateOutlined />}>Верифицирован</Tag>
               )}
               {profile.is_verified_passenger && (
-                <Tag color="cyan" icon={<SafetyCertificateOutlined />}>
-                  {t('profile.verifiedPassenger')}
-                </Tag>
+                <Tag color="cyan" icon={<CheckCircleOutlined />}>Проверенный пассажир</Tag>
               )}
-            </Space>
+              {memberSince && (
+                <Tag icon={<CalendarOutlined />}>С {memberSince}</Tag>
+              )}
+            </div>
           </div>
+          
+          {/* Кнопки контактов (не для своего профиля) */}
+          {!isOwnProfile && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(profile.telegram_username || profile.phone_number) && (
+                <button
+                  onClick={handleTelegram}
+                  style={{ ...styles.contactBtn, ...styles.telegramBtn }}
+                  title="Telegram"
+                >
+                  <SendOutlined style={{ fontSize: 18 }} />
+                </button>
+              )}
+              {profile.phone_number && (
+                <button
+                  onClick={handleCall}
+                  style={{ ...styles.contactBtn, ...styles.phoneBtn }}
+                  title="Позвонить"
+                >
+                  <PhoneOutlined style={{ fontSize: 18 }} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Статистика */}
-        <Divider style={{ margin: '16px 0' }} />
-        <div style={styles.statsSection}>
-          <div style={styles.statItem}>
-            <div style={styles.statValue}>{profile.trips_completed_as_driver || 0}</div>
-            <div style={styles.statLabel}>{t('profile.tripsAsDriver')}</div>
+        <div style={styles.statsGrid}>
+          <div style={styles.statCard}>
+            <div style={styles.statValue}>{tripsCount}</div>
+            <div style={styles.statLabel}>Поездок</div>
           </div>
-          <div style={styles.statItem}>
-            <div style={styles.statValue}>{profile.trips_completed_as_passenger || 0}</div>
-            <div style={styles.statLabel}>{t('profile.tripsAsPassenger')}</div>
-          </div>
-          <div style={styles.statItem}>
-          <div style={{ ...styles.statValue, color: '#faad14' }}>
-            <StarOutlined /> {formattedRating}
-          </div>
-          <div style={styles.statLabel}>{t('review.rating')}</div>
-        </div>
-          <div style={styles.statItem}>
+          <div style={styles.statCard}>
             <div style={styles.statValue}>{reviews.length}</div>
-            <div style={styles.statLabel}>{t('profile.reviewsCount')}</div>
+            <div style={styles.statLabel}>Отзывов</div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statValue, color: '#faad14' }}>
+              {rating > 0 ? rating.toFixed(1) : '—'}
+            </div>
+            <div style={styles.statLabel}>Рейтинг</div>
           </div>
         </div>
 
-        {/* О себе */}
-        {profile.bio && (
-          <>
+        {/* Показатели отзывов */}
+        {reviewStats.total > 0 && (
+          <div style={styles.ratingBreakdown}>
             <Divider style={{ margin: '16px 0' }} />
-            <Text type="secondary">{t('profile.bio')}</Text>
-            <Paragraph style={{ marginTop: 4 }}>{profile.bio}</Paragraph>
-          </>
-        )}
-
-        {/* Город */}
-        {profile.city && (
-          <div style={{ marginTop: 8 }}>
-            <Text type="secondary">{t('profile.city')}: </Text>
-            <Text>{profile.city}</Text>
-          </div>
-        )}
-
-        {/* Кнопки связи (только если не свой профиль) */}
-        {!isOwnProfile && (profile.phone_number || profile.telegram_username) && (
-          <div style={styles.contactButtons}>
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
-              onClick={handleTelegram}
-              style={{ ...styles.contactBtn, ...styles.telegramBtn }}
-            >
-              Telegram
-            </Button>
-            {profile.phone_number && (
-              <Button
-                type="primary"
-                icon={<PhoneOutlined />}
-                onClick={handleCall}
-                style={{ ...styles.contactBtn, ...styles.phoneBtn }}
-              >
-                {t('contact.call')}
-              </Button>
-            )}
+            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+              <div style={styles.ratingBar}>
+                <ClockCircleOutlined style={{ color: '#667eea' }} />
+                <Text style={{ width: 120 }}>Пунктуальность</Text>
+                <Progress 
+                  percent={Math.round((reviewStats.onTime / reviewStats.total) * 100)} 
+                  size="small"
+                  style={{ flex: 1 }}
+                  strokeColor="#667eea"
+                />
+              </div>
+              <div style={styles.ratingBar}>
+                <SmileOutlined style={{ color: '#52c41a' }} />
+                <Text style={{ width: 120 }}>Вежливость</Text>
+                <Progress 
+                  percent={Math.round((reviewStats.polite / reviewStats.total) * 100)} 
+                  size="small"
+                  style={{ flex: 1 }}
+                  strokeColor="#52c41a"
+                />
+              </div>
+              {profile.is_driver && (
+                <div style={styles.ratingBar}>
+                  <CarOutlined style={{ color: '#1890ff' }} />
+                  <Text style={{ width: 120 }}>Чистота авто</Text>
+                  <Progress 
+                    percent={Math.round((reviewStats.cleanCar / reviewStats.total) * 100)} 
+                    size="small"
+                    style={{ flex: 1 }}
+                    strokeColor="#1890ff"
+                  />
+                </div>
+              )}
+            </Space>
           </div>
         )}
       </Card>
 
-      {/* Автомобили (если водитель) */}
+      {/* Автомобили (для водителей) */}
       {profile.is_driver && profile.cars && profile.cars.length > 0 && (
-        <Card style={styles.profileCard}>
+        <div style={styles.section}>
           <div style={styles.sectionTitle}>
-            <CarOutlined /> {t('profile.myCars')}
+            <CarOutlined />
+            Автомобили
           </div>
           {profile.cars.map(car => (
             <div key={car.id} style={styles.carCard}>
               <div style={styles.carIcon}>
                 <CarOutlined />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <Text strong>{car.brand} {car.model}</Text>
-                <br />
-                <Text type="secondary">
-                  {car.color} • {car.plate_number}
-                  {car.year && ` • ${car.year}`}
-                </Text>
-                {car.is_verified && (
-                  <Tag color="green" style={{ marginLeft: 8 }}>
-                    {t('car.verified')}
-                  </Tag>
-                )}
+                <div>
+                  <Text type="secondary">
+                    {car.color}{car.year ? `, ${car.year}` : ''}
+                  </Text>
+                </div>
               </div>
+              {car.is_verified && (
+                <Tag color="green" icon={<CheckCircleOutlined />}>Проверен</Tag>
+              )}
             </div>
           ))}
-        </Card>
+        </div>
       )}
 
       {/* Отзывы */}
-      <Card style={styles.profileCard}>
+      <div style={styles.section}>
         <div style={styles.sectionTitle}>
-          <StarOutlined /> {t('profile.reviews')} ({reviews.length})
+          <StarFilled style={{ color: '#faad14' }} />
+          Отзывы ({reviews.length})
         </div>
-
-        {/* Кнопка написать отзыв (только если не свой профиль и авторизован) */}
-        {isAuth && !isOwnProfile && (
-          <Button
-            type="primary"
-            icon={<StarOutlined />}
-            onClick={() => setShowReviewModal(true)}
-            style={styles.writeReviewBtn}
-          >
-            {t('review.write')}
-          </Button>
-        )}
-
-        {reviews.length > 0 ? (
-          <List
-            dataSource={reviews}
-            renderItem={(review) => (
-              <Card style={styles.reviewCard} styles={{ body: { padding: 14 } }}>
-                <div style={styles.reviewHeader}>
-                  <Avatar
-                    size={40}
-                    icon={<UserOutlined />}
-                    src={review.author_photo}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/user/${review.author}`)}
-                  />
-                  <div style={styles.reviewAuthor}>
-                    <Text
-                      strong
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => navigate(`/user/${review.author}`)}
-                    >
-                      {review.author_name || t('profile.anonymous')}
-                    </Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {dayjs(review.created_at).format('DD.MM.YYYY')}
-                    </Text>
+        
+        {reviewsLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Spin />
+          </div>
+        ) : reviews.length > 0 ? (
+          reviews.map(review => (
+            <div key={review.id} style={styles.reviewCard}>
+              <div style={styles.reviewHeader}>
+                <div style={styles.reviewAuthor}>
+                  <Avatar src={review.author_photo} icon={<UserOutlined />} size={40} />
+                  <div>
+                    <Text strong>{review.author_name}</Text>
+                    <div>
+                      <Rate disabled value={review.rating} style={{ fontSize: 14 }} />
+                    </div>
                   </div>
-                  <Rate disabled defaultValue={review.rating} style={{ fontSize: 14 }} />
                 </div>
-                {review.text && (
-                  <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
-                    {review.text}
-                  </Paragraph>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {dayjs(review.created_at).format('DD.MM.YYYY')}
+                </Text>
+              </div>
+              
+              {review.text && (
+                <Paragraph style={{ marginBottom: 8, marginTop: 8 }}>
+                  "{review.text}"
+                </Paragraph>
+              )}
+              
+              <Space size={4} wrap>
+                {review.was_on_time && (
+                  <Tag color="blue" icon={<ClockCircleOutlined />}>Вовремя</Tag>
                 )}
-              </Card>
-            )}
-          />
+                {review.was_polite && (
+                  <Tag color="green" icon={<SmileOutlined />}>Вежливый</Tag>
+                )}
+                {review.car_was_clean && (
+                  <Tag color="cyan" icon={<CarOutlined />}>Чистое авто</Tag>
+                )}
+              </Space>
+            </div>
+          ))
         ) : (
-          <Empty description={t('profile.noReviews')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty 
+            description="Пока нет отзывов" 
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
         )}
-      </Card>
-
-      {/* Модалка написания отзыва */}
-      <Modal
-        title={t('review.write')}
-        open={showReviewModal}
-        onCancel={() => setShowReviewModal(false)}
-        footer={null}
-        styles={{ content: { borderRadius: 16 } }}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmitReview}
-          initialValues={{ rating: 5 }}
-        >
-          <Form.Item
-            name="rating"
-            label={t('review.rating')}
-            rules={[{ required: true, message: t('review.ratingRequired') }]}
-          >
-            <Rate style={{ fontSize: 28 }} />
-          </Form.Item>
-
-          <Form.Item
-            name="text"
-            label={t('review.text')}
-          >
-            <TextArea
-              rows={4}
-              placeholder={t('review.textPlaceholder')}
-              maxLength={500}
-              showCount
-            />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0 }}>
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setShowReviewModal(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={reviewLoading}
-                style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  border: 'none',
-                }}
-              >
-                {t('review.submit')}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+      </div>
     </div>
   );
 }
