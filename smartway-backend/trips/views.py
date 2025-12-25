@@ -422,7 +422,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         
         # Обновляем количество занятых мест
         announcement.booked_seats += booking.seats_count
-        if announcement.booked_seats >= announcement.available_seats:
+        if announcement.free_seats <= 0:
             announcement.status = 'full'
         announcement.save(update_fields=['booked_seats', 'status', 'updated_at'])
         

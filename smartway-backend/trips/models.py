@@ -195,7 +195,10 @@ class DriverAnnouncement(models.Model):
     
     @property
     def free_seats(self):
-        return self.available_seats - self.booked_seats
+        max_seats = self.available_seats
+        if self.car and self.car.passenger_seats:
+            max_seats = min(max_seats, self.car.passenger_seats)
+        return max(max_seats - self.booked_seats, 0)
     
     def can_book(self, seats: int = 1) -> bool:
         return self.status == self.Status.ACTIVE and self.free_seats >= seats

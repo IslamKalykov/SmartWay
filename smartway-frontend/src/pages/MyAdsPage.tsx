@@ -55,7 +55,22 @@ import {
 const { Text } = Typography;
 const { TextArea } = Input;
 
-type ReviewTarget = { type: 'trip'; trip: Trip } | { type: 'booking'; booking: Booking };
+type PassengerBookingSummary = {
+  announcement: number;
+  announcement_info?: Booking['announcement_info'];
+  passenger: number;
+  passenger_name: string;
+  passenger_phone?: string;
+  passenger_photo?: string;
+  passenger_verified: boolean;
+  seats_count: number;
+  contact_phone?: string;
+  has_review_from_me?: boolean;
+  bookingIds: number[];
+  message?: string;
+};
+
+type ReviewTarget = { type: 'trip'; trip: Trip } | { type: 'booking'; booking: { id: number; announcement_info?: Booking['announcement_info'] } };
 
 // ==================== Стили ====================
 const styles: { [key: string]: React.CSSProperties } = {
@@ -496,8 +511,8 @@ export default function MyAdsPage() {
     });
   };
 
-  const handleOpenBookingReview = (booking: Booking) => {
-    setReviewTarget({ type: 'booking', booking });
+  const handleOpenBookingReview = (booking: PassengerBookingSummary) => {
+    setReviewTarget({ type: 'booking', booking: { id: booking.bookingIds[0], announcement_info: booking.announcement_info } });
     setReviewRating(5);
     setReviewText('');
     setReviewFlags({
@@ -579,11 +594,35 @@ export default function MyAdsPage() {
   const completedAnnouncements = announcements.filter(a => ['completed', 'cancelled'].includes(a.status));
   const pendingBookings = bookings.filter(b => b.status === 'pending');
   const completedBookings = bookings.filter(b => b.status === 'completed');
-  const completedBookingsByAnnouncement = completedBookings.reduce<Record<number, Booking[]>>((acc, booking) => {
+  const completedBookingsByAnnouncement = completedBookings.reduce<Record<number, PassengerBookingSummary[]>>((acc, booking) => {
     if (!acc[booking.announcement]) {
       acc[booking.announcement] = [];
     }
-    acc[booking.announcement].push(booking);
+    const existingSummary = acc[booking.announcement].find(item => item.passenger === booking.passenger);
+    if (existingSummary) {
+      existingSummary.seats_count += booking.seats_count;
+      existingSummary.bookingIds.push(booking.id);
+      existingSummary.has_review_from_me = existingSummary.has_review_from_me || !!booking.has_review_from_me;
+      if (!existingSummary.contact_phone) existingSummary.contact_phone = booking.contact_phone;
+      if (!existingSummary.passenger_phone) existingSummary.passenger_phone = booking.passenger_phone;
+      if (!existingSummary.message && booking.message) existingSummary.message = booking.message;
+      if (!existingSummary.announcement_info) existingSummary.announcement_info = booking.announcement_info;
+    } else {
+      acc[booking.announcement].push({
+        announcement: booking.announcement,
+        announcement_info: booking.announcement_info,
+        passenger: booking.passenger,
+        passenger_name: booking.passenger_name,
+        passenger_phone: booking.passenger_phone,
+        passenger_photo: booking.passenger_photo,
+        passenger_verified: booking.passenger_verified,
+        seats_count: booking.seats_count,
+        contact_phone: booking.contact_phone,
+        has_review_from_me: booking.has_review_from_me,
+        bookingIds: [booking.id],
+        message: booking.message,
+      });
+    }
     return acc;
   }, {});
 
@@ -733,11 +772,11 @@ export default function MyAdsPage() {
             {bookingsForAnnouncement.map((booking) => {
               const phone = booking.contact_phone || booking.passenger_phone;
               const cleanPhone = phone?.replace(/\D/g, '');
-              const alreadyReviewed = booking.has_review_from_me;
-              const canReview = booking.status === 'completed' && !alreadyReviewed;
+              const alreadyReviewed = !!booking.has_review_from_me;
+              const canReview = !alreadyReviewed;
 
               return (
-                <Card key={booking.id} size="small" style={{ borderRadius: 10 }}>
+                <Card key={`${booking.announcement}-${booking.passenger}`} size="small" style={{ borderRadius: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                     <Space size={8}>
                       <Avatar icon={<UserOutlined />} src={booking.passenger_photo} />

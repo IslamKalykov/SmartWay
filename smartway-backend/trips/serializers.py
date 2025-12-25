@@ -413,6 +413,11 @@ class BookingCreateSerializer(serializers.ModelSerializer):
         model = Booking
         fields = ("announcement", "seats_count", "message", "contact_phone")
 
+    def validate_seats_count(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Количество мест должно быть больше нуля.")
+        return value
+
     def validate(self, data):
         announcement = data["announcement"]
         seats = data.get("seats_count", 1)
@@ -434,10 +439,10 @@ class BookingCreateSerializer(serializers.ModelSerializer):
                 "У вас уже есть запрос на это объявление. Дождитесь решения водителя."
             )
 
-        # Проверяем, хватает ли свободных мест (с учётом уже подтверждённых)
+        # Проверяем, хватает ли свободных мест (с учётом уже подтверждённых и физической вместимости авто)
         if not announcement.can_book(seats):
             raise serializers.ValidationError(
-                f"Недостаточно мест. Доступно: {announcement.free_seats}"
+                f"Невозможно создать бронирование: доступно {announcement.free_seats} мест."
             )
 
         return data
@@ -483,13 +488,12 @@ class BookingSerializer(serializers.ModelSerializer):
             "driver_name": ann.driver.full_name,
         }
     
-
     def get_has_review_from_me(self, obj):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
         if not user or not getattr(user, 'is_authenticated', False):
             return False
-        return obj.reviews.filter(author=user).exists()
+        return Review.objects.filter(author=user, booking__announcement=obj.announcement).exists()
 
 
     def _get_lang(self):
@@ -547,7 +551,12 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
             if user != trip.passenger and user != trip.driver:
                 raise serializers.ValidationError("Вы не участвовали в этой поездке")
 
-            if Review.objects.filter(author=user, trip=trip).exists():
+            recipient_candidate = driver if user == booking.passenger else booking.passenger
+            if Review.objects.filter(
+                author=user,
+                recipient=recipient_candidate,
+                booking__announcement=booking.announcement
+            ).exists():
                 raise serializers.ValidationError("Вы уже оставили отзыв по этой поездке")
 
             if user == trip.passenger:
@@ -634,4 +643,4 @@ class AnnouncementListSerializer(serializers.ModelSerializer):
         return None
 
     def get_free_seats(self, obj):
-        return obj.available_seats - obj.booked_seats
+        return obj.free_seats
