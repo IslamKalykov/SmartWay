@@ -326,10 +326,10 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        if not validated_data.get('contact_phone'):
-            validated_data['contact_phone'] = user.phone_number
-        return DriverAnnouncement.objects.create(driver=user, **validated_data)
+        driver = validated_data.pop("driver", None) or self.context["request"].user
+        if not validated_data.get("contact_phone"):
+            validated_data["contact_phone"] = driver.phone_number
+        return DriverAnnouncement.objects.create(driver=driver, **validated_data)
 
 
 class AnnouncementDetailSerializer(serializers.ModelSerializer):
