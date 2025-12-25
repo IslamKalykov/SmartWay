@@ -87,6 +87,7 @@ export interface Booking {
   message?: string;
   driver_comment?: string;
   contact_phone?: string;
+  contact_telegram?: string;
   has_review_from_me?: boolean;
   passenger_telegram?: string;
   seats_requested?: number;

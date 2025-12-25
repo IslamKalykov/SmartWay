@@ -245,46 +245,6 @@ export default function ProfilePage() {
         </div>
       ),
     },
-    {
-      key: 'reviews',
-      label: (
-        <span>
-          <StarOutlined /> {t('profile.reviews')} ({reviews.length})
-        </span>
-      ),
-      children: (
-        <div>
-          {reviews.length > 0 ? (
-            <List
-              dataSource={reviews}
-              renderItem={(review) => (
-                <Card style={{ marginBottom: 12, borderRadius: 8 }} styles={{ body: { padding: 16 } }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <Avatar icon={<UserOutlined />} src={review.author_photo} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text strong>{review.author_name}</Text>
-                        <Rate disabled defaultValue={review.rating} style={{ fontSize: 14 }} />
-                      </div>
-                      {review.text && (
-                        <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
-                          {review.text}
-                        </Paragraph>
-                      )}
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {dayjs(review.created_at).format('DD.MM.YYYY')}
-                      </Text>
-                    </div>
-                  </div>
-                </Card>
-              )}
-            />
-          ) : (
-            <Empty description={t('profile.noReviews')} />
-          )}
-        </div>
-      ),
-    },
   ];
 
   // Добавляем вкладку авто ТОЛЬКО для водителей

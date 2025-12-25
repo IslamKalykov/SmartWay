@@ -785,11 +785,6 @@ export default function SearchPage() {
   const handleTakeTrip = async () => {
     if (!selectedTrip) return;
 
-    if (bookingSeats > (selectedAnnouncement.free_seats || 0)) {
-      message.error(t('booking.seatsExceeded'));
-      return;
-    }
-
     try {
       setActionLoading(true);
       const updatedTrip = await takeTrip(selectedTrip.id);
@@ -863,6 +858,12 @@ export default function SearchPage() {
   // === Действия для пассажира ===
   const handleBookAnnouncement = async () => {
     if (!selectedAnnouncement) return;
+
+    // Проверка количества мест
+    if (bookingSeats > (selectedAnnouncement.free_seats || 0)) {
+      message.error(t('booking.seatsExceeded'));
+      return;
+    }
 
     try {
       setActionLoading(true);
@@ -1277,12 +1278,13 @@ export default function SearchPage() {
 
             <Form layout="vertical">
               <Form.Item
-                  label={t('booking.seatsCount')}
-                  validateStatus={bookingSeats > (selectedAnnouncement.free_seats || 0) ? 'error' : ''}
-                  help={bookingSeats > (selectedAnnouncement.free_seats || 0) ? t('booking.seatsExceeded') : ''}
-                >
+                label={t('booking.seatsCount')}
+                validateStatus={bookingSeats > (selectedAnnouncement.free_seats || 0) ? 'error' : ''}
+                help={bookingSeats > (selectedAnnouncement.free_seats || 0) ? t('booking.seatsExceeded') : ''}
+              >
                 <InputNumber
                   min={1}
+                  max={selectedAnnouncement.free_seats || 1}
                   value={bookingSeats}
                   onChange={v => setBookingSeats(v || 1)}
                   style={{ width: '100%' }}

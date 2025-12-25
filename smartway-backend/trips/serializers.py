@@ -6,50 +6,7 @@ from .models import Trip, DriverAnnouncement, Booking, Review
 from users.models import Car
 from locations.models import Location
 
-# trips/serializers.py (в начало файла, после импортов)
-def _resolve_lang_from_request(request):
-    """
-    Надёжно получить 2-символьный код языка из request:
-    1) ?lang=xy
-    2) request.LANGUAGE_CODE (Django LocaleMiddleware)
-    3) Accept-Language header (парсим первый предпочтительный язык)
-    Иначе возвращаем 'ru' по-умолчанию.
-    """
-    if not request:
-        return 'ru'
 
-    # 1) query param
-    lang = request.query_params.get('lang')
-    if lang:
-        return lang[:2]
-
-    # 2) Django LocaleMiddleware
-    language_code = getattr(request, 'LANGUAGE_CODE', None)
-    if language_code:
-        return language_code[:2]
-
-    # 3) Accept-Language
-    al = request.headers.get('Accept-Language') or request.META.get('HTTP_ACCEPT_LANGUAGE', '') or ''
-    if al:
-        # берем первую часть, убираем q/регион и т.п.
-        first = al.split(',')[0].strip()
-        first = first.split(';')[0].strip()
-        first = first.split('-')[0].strip()
-        if first:
-            return first[:2]
-
-    return 'ru'
-
-
-# trips/serializers.py
-from rest_framework import serializers
-from django.db import transaction
-from django.utils import timezone
-from .models import Trip, DriverAnnouncement, Booking, Review
-from users.models import Car
-from locations.models import Location
-
-# trips/serializers.py (в начало файла, после импортов)
 def _resolve_lang_from_request(request):
     """
     Надёжно получить 2-символьный код языка из request:
@@ -119,6 +76,7 @@ def _ensure_location_instance(value):
 def _ensure_location_id(value):
     return _ensure_location_instance(value).id
 
+
 # ===================== TRIP SERIALIZERS (Заказы пассажиров) =====================
 
 class TripCreateSerializer(serializers.ModelSerializer):
@@ -143,7 +101,6 @@ class TripCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Количество пассажиров от 1 до 50.")
         return value
 
-
     def to_internal_value(self, data):
         data = data.copy()
         if 'from_location' in data:
@@ -159,12 +116,14 @@ class TripCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = validated_data.get("driver") or self.context["request"].user
-        # Убираем passenger если он случайно попал в validated_data
-        validated_data.pop('passenger', None)
-        if not validated_data.get('contact_phone'):
-            validated_data['contact_phone'] = user.phone_number
-        return DriverAnnouncement.objects.create(**validated_data)
+        passenger = validated_data.pop("passenger", None) or self.context["request"].user
+        # Убираем driver на всякий случай, чтобы не сохранить в заказе
+        validated_data.pop("driver", None)
+
+        if not validated_data.get("contact_phone"):
+            validated_data["contact_phone"] = getattr(passenger, "phone_number", "")
+
+        return Trip.objects.create(passenger=passenger, **validated_data)
 
 
 class TripListSerializer(serializers.ModelSerializer):
@@ -187,9 +146,9 @@ class TripListSerializer(serializers.ModelSerializer):
             "id", "from_location", "to_location", 
             "from_location_display", "to_location_display",
             "departure_time", "passengers_count", "price", "is_negotiable", "status",
-            "contact_phone",  # ← ДОБАВИЛИ
-            "passenger", "driver",  # ← идентификаторы участников
-            "passenger_name", "passenger_phone", "passenger_verified",  # ← passenger_phone
+            "contact_phone",
+            "passenger", "driver",
+            "passenger_name", "passenger_phone", "passenger_verified",
             "driver_name", "driver_phone", "driver_verified",
             "my_role", "has_review_from_me",
             "allow_smoking", "allow_pets", "allow_big_luggage",
@@ -225,7 +184,6 @@ class TripListSerializer(serializers.ModelSerializer):
     
     def _get_lang(self):
         return _resolve_lang_from_request(self.context.get('request'))
-
 
 
 class TripDetailSerializer(serializers.ModelSerializer):
@@ -282,7 +240,6 @@ class TripDetailSerializer(serializers.ModelSerializer):
     
     def _get_lang(self):
         return _resolve_lang_from_request(self.context.get('request'))
-
 
 
 # ===================== ANNOUNCEMENT SERIALIZERS (Объявления водителей) =====================
@@ -455,13 +412,13 @@ class BookingCreateSerializer(serializers.ModelSerializer):
         return Booking.objects.create(passenger=user, **validated_data)
 
 
-
 class BookingSerializer(serializers.ModelSerializer):
     """Сериализатор бронирования"""
     passenger_name = serializers.CharField(source="passenger.full_name", read_only=True)
     passenger_phone = serializers.CharField(source="passenger.phone_number", read_only=True)
     passenger_photo = serializers.ImageField(source="passenger.photo", read_only=True)
     passenger_verified = serializers.BooleanField(source="passenger.is_verified_passenger", read_only=True)
+    contact_telegram = serializers.SerializerMethodField()
     passenger_telegram = serializers.SerializerMethodField()
     seats_requested = serializers.IntegerField(source="seats_count", read_only=True)
     announcement_info = serializers.SerializerMethodField()
@@ -474,7 +431,7 @@ class BookingSerializer(serializers.ModelSerializer):
         model = Booking
         fields = (
             "id", "announcement", "announcement_info",
-            "passenger", "passenger_name", "passenger_phone", "passenger_photo", "passenger_verified", "passenger_telegram",
+            "passenger", "passenger_name", "passenger_phone", "passenger_photo", "passenger_verified", "passenger_telegram", "contact_telegram",
             "seats_count", "seats_requested", "status", "message", "driver_comment", "contact_phone",
             "announcement_from", "announcement_to", "driver_phone",
             "has_review_from_me",
@@ -511,11 +468,30 @@ class BookingSerializer(serializers.ModelSerializer):
         user = getattr(request, 'user', None)
         if not user or not getattr(user, 'is_authenticated', False):
             return False
-        return Review.objects.filter(author=user, booking=obj).exists()
+        
+        # Проверяем: оставлял ли текущий пользователь отзыв по этому бронированию
+        # (либо как пассажир, либо как водитель объявления)
+        has_review = Review.objects.filter(author=user, booking=obj).exists()
+        
+        # Дополнительная проверка: если пользователь - водитель объявления,
+        # проверим отзыв где recipient = пассажир этого бронирования
+        if not has_review and obj.announcement.driver_id == user.id:
+            has_review = Review.objects.filter(
+                author=user,
+                recipient_id=obj.passenger_id,
+                booking__announcement_id=obj.announcement_id
+            ).exists()
+        
+        return has_review
 
     def get_passenger_telegram(self, obj):
         return getattr(obj.passenger, "telegram_username", None) or getattr(obj.passenger, "telegram", None)
 
+    def get_contact_telegram(self, obj):
+        explicit_contact = getattr(obj, "contact_telegram", None)
+        if explicit_contact:
+            return explicit_contact
+        return self.get_passenger_telegram(obj)
 
     def _get_lang(self):
         return _resolve_lang_from_request(self.context.get('request'))
@@ -566,52 +542,81 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Укажите только trip или booking, не оба")
         
         if trip:
+            # Отзыв по Trip (заказу пассажира, который взял водитель)
             if trip.status != Trip.Status.COMPLETED:
                 raise serializers.ValidationError("Отзыв можно оставить после завершения поездки")
 
             if user != trip.passenger and user != trip.driver:
                 raise serializers.ValidationError("Вы не участвовали в этой поездке")
 
-            recipient_candidate = driver if user == booking.passenger else booking.passenger
-            if Review.objects.filter(
-                author=user,
-                recipient=recipient_candidate,
-                booking__announcement=booking.announcement
-            ).exists():
+            # Проверяем, не оставлял ли уже отзыв по этому trip
+            if Review.objects.filter(author=user, trip=trip).exists():
                 raise serializers.ValidationError("Вы уже оставили отзыв по этой поездке")
 
+            # Определяем получателя отзыва
             if user == trip.passenger:
                 recipient = trip.driver
             else:
                 recipient = trip.passenger
+                
+            if not recipient:
+                raise serializers.ValidationError("Не найден получатель отзыва (водитель/пассажир)")
         else:
+            # Отзыв по Booking (бронированию на объявление водителя)
+            announcement = booking.announcement
+            driver = announcement.driver
+            
+            # Разрешаем отзыв если:
+            # 1. Booking завершён (completed)
+            # 2. ИЛИ Announcement завершён (completed) и booking подтверждён (confirmed)
+            booking_completed = booking.status == Booking.Status.COMPLETED
+            announcement_completed = announcement.status == DriverAnnouncement.Status.COMPLETED
+            booking_confirmed = booking.status == Booking.Status.CONFIRMED
+            
+            if not (booking_completed or (announcement_completed and booking_confirmed)):
+                raise serializers.ValidationError("Отзыв можно оставить только по завершённой поездке")
 
-            if booking.status != Booking.Status.COMPLETED:
-                raise serializers.ValidationError("Отзыв можно оставить только по завершённому бронированию")
-
-            driver = booking.announcement.driver
             if user != booking.passenger and user != driver:
                 raise serializers.ValidationError("Вы не участвовали в этом бронировании")
 
+            # Проверяем, не оставлял ли уже отзыв по этому booking
             if Review.objects.filter(author=user, booking=booking).exists():
                 raise serializers.ValidationError("Вы уже оставили отзыв по этому бронированию")
 
+            # Определяем получателя отзыва
             if user == booking.passenger:
-                
                 recipient = driver
             else:
                 recipient = booking.passenger
         
         if not recipient:
             raise serializers.ValidationError("Не найден получатель отзыва")
+            
         data['recipient'] = recipient
         return data
     
     def create(self, validated_data):
         user = self.context['request'].user
         recipient = validated_data.pop('recipient')
-        return Review.objects.create(author=user, recipient=recipient, **validated_data)
-    
+        
+        # Явно извлекаем booking и trip чтобы убедиться что они сохраняются
+        booking = validated_data.get('booking')
+        trip = validated_data.get('trip')
+        
+        review = Review.objects.create(
+            author=user,
+            recipient=recipient,
+            booking=booking,
+            trip=trip,
+            rating=validated_data.get('rating'),
+            text=validated_data.get('text', ''),
+            was_on_time=validated_data.get('was_on_time', False),
+            was_polite=validated_data.get('was_polite', False),
+            car_was_clean=validated_data.get('car_was_clean', False),
+        )
+        return review
+
+
 class AnnouncementListSerializer(serializers.ModelSerializer):
     """Список объявлений водителей"""
     from_location_display = serializers.SerializerMethodField()

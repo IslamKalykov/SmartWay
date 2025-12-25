@@ -385,6 +385,12 @@ class BookingViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return BookingCreateSerializer
         return BookingSerializer
+
+    def get_serializer_context(self):
+        """Всегда передаём request в context"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
     
     def get_queryset(self):
         user = self.request.user
@@ -408,7 +414,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     def my(self, request):
         """GET /api/bookings/my/ - мои бронирования как пассажира"""
         qs = Booking.objects.filter(passenger=request.user).order_by('-created_at')
-        serializer = BookingSerializer(qs, many=True)
+        serializer = BookingSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
@@ -417,7 +423,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         qs = Booking.objects.filter(
             announcement__driver=request.user
         ).order_by('-created_at')
-        serializer = BookingSerializer(qs, many=True)
+        serializer = BookingSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
