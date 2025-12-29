@@ -389,7 +389,7 @@ function FilterModal({ visible, onClose, filters, onApply, onClear, loading, t }
           <Text strong style={{ marginBottom: 12, display: 'block' }}>
             {t('search.conditions')}
           </Text>
-          <Space orientation="vertical" style={{ width: '100%' }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>🚬 {t('rideOptions.allowSmoking')}</span>
               <Switch
@@ -717,7 +717,7 @@ export default function SearchPage() {
     maxWidth: isMobile ? '100%' : 968,
     zIndex: 50,
     background: '#fff',
-    padding: '8px 16px',
+    padding: '8px 12px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
   };
 
@@ -957,13 +957,19 @@ export default function SearchPage() {
     );
   }
 
-  // Табы для водителя
+  // Стили для табов - компактные на мобилке
+  const tabLabelStyle: React.CSSProperties = {
+    fontSize: isMobile ? 12 : 14,
+    whiteSpace: 'nowrap',
+  };
+
+  // Табы для водителя - короткие названия на мобилке
   const driverTabItems = [
     {
       key: 'available',
       label: (
-        <span style={{ fontWeight: activeTab === 'available' ? 600 : 400 }}>
-          📋 {t('search.available')} ({filteredTrips.length})
+        <span style={{ ...tabLabelStyle, fontWeight: activeTab === 'available' ? 600 : 400 }}>
+          📋 {isMobile ? t('search.available') : t('search.available')} ({filteredTrips.length})
         </span>
       ),
       children: null,
@@ -971,8 +977,8 @@ export default function SearchPage() {
     {
       key: 'my',
       label: (
-        <span style={{ fontWeight: activeTab === 'my' ? 600 : 400 }}>
-          🚗 {t('search.myTrips')} ({activeMyTrips.length})
+        <span style={{ ...tabLabelStyle, fontWeight: activeTab === 'my' ? 600 : 400 }}>
+          🚗 {isMobile ? t('search.myTrips') : t('search.myTrips')} ({activeMyTrips.length})
         </span>
       ),
       children: null,
@@ -980,21 +986,21 @@ export default function SearchPage() {
     {
       key: 'completed',
       label: (
-        <span style={{ fontWeight: activeTab === 'completed' ? 600 : 400 }}>
-          ✅ {t('tripStatus.completed')} ({completedMyTrips.length})
+        <span style={{ ...tabLabelStyle, fontWeight: activeTab === 'completed' ? 600 : 400 }}>
+          ✅ {isMobile ? t('search.history') : t('tripStatus.completed')} ({completedMyTrips.length})
         </span>
       ),
       children: null,
     },
   ];
 
-  // Табы для пассажира
+  // Табы для пассажира - короткие названия на мобилке
   const passengerTabItems = [
     {
       key: 'available',
       label: (
-        <span style={{ fontWeight: activeTab === 'available' ? 600 : 400 }}>
-          🚘 {t('search.driverAnnouncements')} ({filteredAnnouncements.length})
+        <span style={{ ...tabLabelStyle, fontWeight: activeTab === 'available' ? 600 : 400 }}>
+          🚘 {isMobile ? t('search.available') : t('search.driverAnnouncements')} ({filteredAnnouncements.length})
         </span>
       ),
       children: null,
@@ -1002,7 +1008,7 @@ export default function SearchPage() {
     {
       key: 'history',
       label: (
-        <span style={{ fontWeight: activeTab === 'history' ? 600 : 400 }}>
+        <span style={{ ...tabLabelStyle, fontWeight: activeTab === 'history' ? 600 : 400 }}>
           🕓 {t('search.history')} ({filteredBookings.length})
         </span>
       ),
@@ -1046,7 +1052,7 @@ export default function SearchPage() {
 
         <Divider style={{ margin: '12px 0' }} />
 
-        <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <EnvironmentOutlined style={{ color: '#1677ff' }} />
             <Text strong>{route}</Text>
@@ -1189,6 +1195,8 @@ export default function SearchPage() {
           onChange={setActiveTab}
           items={isDriver ? driverTabItems : passengerTabItems}
           style={{ margin: 0 }}
+          size={isMobile ? 'small' : 'middle'}
+          tabBarStyle={{ marginBottom: 0 }}
         />
       </div>
 
