@@ -8,7 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { sendOtp, verifyOtp } from '../../api/auth';
+import { sendOtp, verifyOtpWithPayload } from '../../api/auth';
 
 const { Title, Text } = Typography;
 
@@ -41,17 +41,26 @@ export default function RegisterPage() {
     }
   };
 
-  const handleVerifyOtp = async (values: { code: string }) => {
+  const handleVerifyOtp = async (values: { code: string; pin: string; confirmPin: string }) => {
+    if (values.pin !== values.confirmPin) {
+      message.error(t('auth.pinMismatch'));
+      return;
+    }
     try {
       setLoading(true);
-      const result = await verifyOtp(phone, values.code);
-
-      // Сохраняем токены
-      localStorage.setItem('access_token', result.access);
-      localStorage.setItem('refresh_token', result.refresh);
+      const result = await verifyOtpWithPayload({
+        phone,
+        code: values.code,
+        pin_code: values.pin,
+        role: isDriver ? 'driver' : 'passenger',
+      });
 
       // Обновляем контекст
-      await login(result.access, result.refresh);
+      await login({
+        access: result.access,
+        refresh: result.refresh,
+        user: result.user,
+      });
 
       message.success(t('common.success'));
       navigate('/profile');
@@ -144,7 +153,7 @@ export default function RegisterPage() {
                         </Text>
                         <br />
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          {isDriver 
+                          {isDriver
                             ? t('home.findPassengers')
                             : t('home.findTrip')
                           }
@@ -213,6 +222,49 @@ export default function RegisterPage() {
                     disabled={loading}
                     style={{ borderRadius: 8, letterSpacing: 4, textAlign: 'center' }}
                     maxLength={6}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  label={t('auth.newPinLabel')}
+                  name="pin"
+                  rules={[
+                    { required: true, message: t('auth.pinRequired') },
+                    { pattern: /^\d{4}$/, message: t('auth.pinFormat') },
+                  ]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined style={{ color: '#999' }} />}
+                    placeholder={t('auth.pinPlaceholder')}
+                    disabled={loading}
+                    style={{ borderRadius: 8, letterSpacing: 4 }}
+                    maxLength={4}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  label={t('auth.confirmPinLabel')}
+                  name="confirmPin"
+                  dependencies={['pin']}
+                  rules={[
+                    { required: true, message: t('auth.pinRequired') },
+                    { pattern: /^\d{4}$/, message: t('auth.pinFormat') },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value || getFieldValue('pin') === value) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error(t('auth.pinMismatch')));
+                      },
+                    }),
+                  ]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined style={{ color: '#999' }} />}
+                    placeholder={t('auth.pinPlaceholder')}
+                    disabled={loading}
+                    style={{ borderRadius: 8, letterSpacing: 4 }}
+                    maxLength={4}
                   />
                 </Form.Item>
 

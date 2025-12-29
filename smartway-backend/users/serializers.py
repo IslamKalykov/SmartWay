@@ -4,11 +4,12 @@ from .models import User, Car, VerificationRequest
 
 class UserSerializer(serializers.ModelSerializer):
     """Базовый сериализатор пользователя"""
+    has_pin = serializers.ReadOnlyField()
     class Meta:
         model = User
         fields = (
             "id", "phone_number", "full_name", "is_driver", "public_id",
-            "photo", "is_verified_driver", "is_verified_passenger"
+            "photo", "is_verified_driver", "is_verified_passenger", "has_pin"
         )
 
 
@@ -62,6 +63,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     reviews_count_as_driver = serializers.ReadOnlyField()
     reviews_count_as_passenger = serializers.ReadOnlyField()
     cars = serializers.SerializerMethodField()
+    has_pin = serializers.ReadOnlyField()
     
     class Meta:
         model = User
@@ -71,14 +73,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'is_approved', 'public_id',
             'trips_completed_as_driver', 'trips_completed_as_passenger',
             'average_rating_as_driver', 'average_rating_as_passenger',
-            'reviews_count_as_driver', 'reviews_count_as_passenger',
+            'reviews_count_as_driver', 'reviews_count_as_passenger', 'has_pin',
             'cars', 'created_at', 'updated_at'
         )
         read_only_fields = (
             'id', 'phone_number', 'public_id', 'is_verified_driver', 
             'is_verified_passenger', 'is_approved',
             'trips_completed_as_driver', 'trips_completed_as_passenger',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'has_pin',
         )
     
     def get_cars(self, obj):

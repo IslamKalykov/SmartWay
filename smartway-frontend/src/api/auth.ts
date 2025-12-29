@@ -44,6 +44,15 @@ export interface AuthTokens {
   user?: User;
 }
 
+export interface VerifyOtpPayload {
+  phone: string;
+  code: string;
+  full_name?: string;
+  role?: 'driver' | 'passenger';
+  pin_code?: string;
+  reset_pin?: boolean;
+}
+
 // === Auth API ===
 export interface AuthTokensRaw {
   access?: string;
@@ -100,6 +109,29 @@ export async function verifyOtp(phone: string, code: string): Promise<AuthTokens
   const response = await api.post('/users/verify-otp/', {
     phone_number: phone,
     otp_code: code,
+  });
+
+  const tokens = normalizeTokens(response.data);
+  return tokens;
+}
+
+
+export async function verifyOtpWithPayload(payload: VerifyOtpPayload): Promise<AuthTokens> {
+  const { phone, code, ...rest } = payload;
+  const response = await api.post('/users/verify-otp/', {
+    phone_number: phone,
+    otp_code: code,
+    ...rest,
+  });
+
+  const tokens = normalizeTokens(response.data);
+  return tokens;
+}
+
+export async function loginWithPin(phone: string, pin: string): Promise<AuthTokens> {
+  const response = await api.post('/users/login-pin/', {
+    phone_number: phone,
+    pin_code: pin,
   });
 
   const tokens = normalizeTokens(response.data);

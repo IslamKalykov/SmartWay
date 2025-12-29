@@ -23,6 +23,21 @@ from trips.serializers import ReviewSerializer
 from trips.models import Review
 
 
+def normalize_phone(phone: str) -> str:
+    return phone.replace("+", "").replace(" ", "")
+
+
+def is_valid_pin(pin_code: str) -> bool:
+    return pin_code.isdigit() and len(pin_code) == 4
+
+
+def to_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).lower() in ("1", "true", "yes", "on")
+
+
+
 # ===================== OTP AUTH =====================
 
 class SendOtpView(APIView):
@@ -40,7 +55,7 @@ class SendOtpView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        normalized_phone = phone.replace("+", "").replace(" ", "")
+        normalized_phone = normalize_phone(phone)
         
         # Генерируем и сохраняем код
         code = generate_otp()
@@ -66,6 +81,8 @@ class VerifyOtpView(APIView):
         code = request.data.get("otp_code", "").strip()
         full_name = request.data.get("full_name", "").strip()
         role = request.data.get("role", "").strip()
+        pin_code = request.data.get("pin_code", "").strip()
+        reset_pin = to_bool(request.data.get("reset_pin", False))
         
         if not phone or not code:
             return Response(
@@ -73,7 +90,7 @@ class VerifyOtpView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        normalized_phone = phone.replace("+", "").replace(" ", "")
+        normalized_phone = normalize_phone(phone)
         stored_code = get_otp(normalized_phone)
         
         if stored_code is None or stored_code != code:
@@ -84,18 +101,51 @@ class VerifyOtpView(APIView):
         
         delete_otp(normalized_phone)
         
-        user, created = User.objects.get_or_create(
-            phone_number=normalized_phone,
-            defaults={"full_name": full_name or normalized_phone}
-        )
+        user = User.objects.filter(phone_number=normalized_phone).first()
+        created = False
         
         changed = False
-        if full_name and not user.full_name:
-            user.full_name = full_name
-            changed = True
-        if role in ("driver", "passenger"):
-            user.is_driver = (role == "driver")
-            changed = True
+        if not user:
+            if not pin_code:
+                return Response(
+                    {"detail": "pin_code is required to set or reset PIN"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if not is_valid_pin(pin_code):
+                return Response(
+                    {"detail": "PIN must be exactly 4 digits"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user = User(
+                phone_number=normalized_phone,
+                full_name=full_name or normalized_phone,
+            )
+            if role in ("driver", "passenger"):
+                user.is_driver = (role == "driver")
+            user.set_pin(pin_code)
+            created = True
+        else:
+            if full_name and not user.full_name:
+                user.full_name = full_name
+                changed = True
+            if role in ("driver", "passenger"):
+                user.is_driver = (role == "driver")
+                changed = True
+
+            pin_required = not user.has_pin or reset_pin
+            if pin_required:
+                if not pin_code:
+                    return Response(
+                        {"detail": "pin_code is required to set or reset PIN"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if not is_valid_pin(pin_code):
+                    return Response(
+                        {"detail": "PIN must be exactly 4 digits"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                user.set_pin(pin_code)
+                changed = True
         
         if created or changed:
             user.save()
@@ -106,6 +156,49 @@ class VerifyOtpView(APIView):
             "refresh": str(refresh),
             "user": UserProfileSerializer(user).data
         }, status=status.HTTP_200_OK)
+
+class PinLoginView(APIView):
+    """Авторизация по 4-значному ПИН-коду"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        phone = request.data.get("phone_number", "").strip()
+        pin_code = request.data.get("pin_code", "").strip()
+
+        if not phone or not pin_code:
+            return Response(
+                {"detail": "phone_number and pin_code are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not is_valid_pin(pin_code):
+            return Response(
+                {"detail": "PIN must be exactly 4 digits"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        normalized_phone = normalize_phone(phone)
+        user = User.objects.filter(phone_number=normalized_phone).first()
+
+        if not user:
+            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not user.has_pin:
+            return Response(
+                {"detail": "PIN is not set. Use OTP to register or reset your PIN."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not user.check_pin(pin_code):
+            return Response({"detail": "Invalid PIN"}, status=status.HTTP_400_BAD_REQUEST)
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": UserProfileSerializer(user).data
+        }, status=status.HTTP_200_OK)
+
 
 
 # ===================== PROFILE =====================

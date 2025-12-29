@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 from uuid import uuid4
 from django.core.validators import RegexValidator
@@ -88,6 +89,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     # Публичный ID
     public_id = models.CharField(max_length=16, unique=True, blank=True, null=True)
+    pin_code = models.CharField(max_length=128, blank=True, default="")
     
     # Статистика
     trips_completed_as_driver = models.PositiveIntegerField(default=0)
@@ -137,6 +139,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     def reviews_count_as_passenger(self):
         from trips.models import Review
         return Review.objects.filter(recipient=self, author__is_driver=True).count()
+
+    @property
+    def has_pin(self) -> bool:
+        return bool(self.pin_code)
+    
+    def set_pin(self, raw_pin: str) -> None:
+        self.pin_code = make_password(raw_pin)
+    
+    def check_pin(self, raw_pin: str) -> bool:
+        if not self.pin_code:
+            return False
+        return check_password(raw_pin, self.pin_code)
 
 
 class Car(models.Model):

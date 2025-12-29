@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    SendOtpView, VerifyOtpView, get_token_for_verified_user,
+    SendOtpView, VerifyOtpView, PinLoginView, get_token_for_verified_user,
     MyProfileView, UserPublicProfileView, UploadPhotoView,
     UploadDriverDocumentsView, SwitchRoleView,
     CarViewSet, PublicCarDetailView,
@@ -19,6 +19,7 @@ urlpatterns = [
     # Auth
     path('send-otp/', SendOtpView.as_view(), name='send-otp'),
     path('verify-otp/', VerifyOtpView.as_view(), name='verify-otp'),
+    path('login-pin/', PinLoginView.as_view(), name='login-pin'),
     path('token/', get_token_for_verified_user, name='get-token'),
     
     # Profile

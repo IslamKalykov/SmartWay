@@ -13,13 +13,15 @@ import {
 import {
   PhoneOutlined,
   LockOutlined,
+  SafetyCertificateOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { sendOtp, verifyOtp } from '../../api/auth';
+import { loginWithPin, sendOtp, verifyOtpWithPayload, type AuthTokens } from '../../api/auth';
+
 
 const { Title, Text } = Typography;
 
@@ -29,20 +31,24 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile(768);
 
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [mode, setMode] = useState<'pin' | 'reset'>('pin');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [phoneForm] = Form.useForm();
-  const [otpForm] = Form.useForm();
+  const [pinForm] = Form.useForm();
+  const [resetForm] = Form.useForm();
 
-  const handleSendOtp = async (values: { phone: string }) => {
+  const doLogin = async (tokens: AuthTokens) => {
+    await login(tokens);
+    message.success(t('common.success'));
+    navigate('/search', { replace: true });
+  };
+
+  const handlePinLogin = async (values: { phone: string; pin: string }) => {
     try {
       setLoading(true);
-      await sendOtp(values.phone);
-      setPhone(values.phone);
-      setStep('otp');
-      message.success(t('auth.codeSentTo'));
+      const result = await loginWithPin(values.phone, values.pin);
+      await doLogin(result);
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
       message.error(detail || t('errors.serverError'));
@@ -51,34 +57,42 @@ export default function LoginPage() {
     }
   };
 
-  const handleVerifyOtp = async (values: { code: string }) => {
+  const handleSendOtpForReset = async () => {
+    try {
+      const values = await pinForm.validateFields(['phone']);
+      setLoading(true);
+      await sendOtp(values.phone);
+      setPhone(values.phone);
+      setMode('reset');
+      message.success(t('auth.codeSentTo'));
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      if (detail) {
+        message.error(detail);
+      } else if (error?.errorFields) {
+        // validation error, ignore toast
+      } else {
+        message.error(t('errors.serverError'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleResetPin = async (values: { code: string; newPin: string; confirmPin: string }) => {
+    if (values.newPin !== values.confirmPin) {
+      message.error(t('auth.pinMismatch'));
+      return;
+    }
     try {
       setLoading(true);
-      const result = await verifyOtp(phone, values.code);
-
-      console.log('=== verify-otp response ===');
-      console.log('Full result:', result);
-
-      const accessToken = result.access || result.access_token || result.token;
-      const refreshToken = result.refresh || result.refresh_token;
-      const user = result.user;
-
-      if (!accessToken) {
-        message.error(t('errors.authTokenMissing'));
-        return;
-      }
-
-      // ВАЖНО: login принимает объект, а не два аргумента
-      await login({
-        access: accessToken,
-        refresh: refreshToken,
-        user,
+      const tokens = await verifyOtpWithPayload({
+        phone,
+        code: values.code,
+        pin_code: values.newPin,
+        reset_pin: true,
       });
-
-      message.success(t('common.success'));
-      navigate('/search', { replace: true });
+      await doLogin(tokens);
     } catch (error: any) {
-      console.error('verify-otp error:', error);
       const detail = error?.response?.data?.detail;
       message.error(detail || t('errors.serverError'));
     } finally {
@@ -87,9 +101,17 @@ export default function LoginPage() {
   };
 
   const handleBack = () => {
-    setStep('phone');
-    otpForm.resetFields();
+    setMode('pin');
+    resetForm.resetFields();
   };
+
+  const title =
+    mode === 'pin' ? t('auth.loginWithPin') : t('auth.resetPinTitle');
+  const subtitle =
+    mode === 'pin'
+      ? t('auth.enterPinToLogin')
+      : t('auth.enterOtpAndNewPin');
+
 
   return (
     <div
@@ -104,7 +126,7 @@ export default function LoginPage() {
       <Card
         style={{
           width: '100%',
-          maxWidth: 400,
+          maxWidth: 420,
           borderRadius: 12,
           boxShadow: isMobile ? 'none' : '0 4px 12px rgba(0,0,0,0.08)',
         }}
@@ -117,19 +139,19 @@ export default function LoginPage() {
           {/* Header */}
           <div style={{ textAlign: 'center', width: '100%' }}>
             <Title level={isMobile ? 4 : 3} style={{ marginBottom: 8 }}>
-              {t('auth.loginTitle')}
+              {title}
             </Title>
             <Text type="secondary">
-              {step === 'phone' ? t('auth.enterPhone') : t('auth.enterCode')}
+              {subtitle}
             </Text>
           </div>
 
-          {/* Phone Step */}
-          {step === 'phone' && (
+          {/* PIN login */}
+          {mode === 'pin' && (
             <Form
-              form={phoneForm}
+              form={pinForm}
               layout="vertical"
-              onFinish={handleSendOtp}
+              onFinish={handlePinLogin}
               size={isMobile ? 'middle' : 'large'}
               style={{ width: '100%' }}
             >
@@ -145,6 +167,9 @@ export default function LoginPage() {
                 ]}
               >
                 <Input
+                  inputMode="tel"
+                  type="tel"
+                  autoComplete="tel"
                   prefix={<PhoneOutlined style={{ color: '#999' }} />}
                   placeholder={t('auth.phonePlaceholder')}
                   disabled={loading}
@@ -152,22 +177,51 @@ export default function LoginPage() {
                 />
               </Form.Item>
 
+              <Form.Item
+                label={t('auth.pinLabel')}
+                name="pin"
+                rules={[
+                  { required: true, message: t('auth.pinRequired') },
+                  { pattern: /^\d{4}$/, message: t('auth.pinFormat') },
+                ]}
+              >
+                <Input.Password
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  prefix={<LockOutlined style={{ color: '#999' }} />}
+                  placeholder={t('auth.pinPlaceholder')}
+                  disabled={loading}
+                  style={{ borderRadius: 8, letterSpacing: 4 }}
+                  maxLength={4}
+                />
+              </Form.Item>
+
               <Form.Item style={{ marginBottom: 0 }}>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  block
-                  loading={loading}
-                  style={{ borderRadius: 8, height: isMobile ? 40 : 44 }}
-                >
-                  {t('auth.getCode')}
-                </Button>
+                <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    block
+                    loading={loading}
+                    style={{ borderRadius: 8, height: isMobile ? 40 : 44 }}
+                  >
+                    {t('auth.loginAction')}
+                  </Button>
+                  <Button
+                    type="text"
+                    block
+                    onClick={handleSendOtpForReset}
+                    icon={<SafetyCertificateOutlined />}
+                  >
+                    {t('auth.forgotPin')}
+                  </Button>
+                </Space>
               </Form.Item>
             </Form>
           )}
 
-          {/* OTP Step */}
-          {step === 'otp' && (
+          {/* Reset PIN */}
+          {mode === 'reset' && (
             <div style={{ width: '100%' }}>
               <div
                 style={{
@@ -189,9 +243,9 @@ export default function LoginPage() {
               </div>
 
               <Form
-                form={otpForm}
+                form={resetForm}
                 layout="vertical"
-                onFinish={handleVerifyOtp}
+                onFinish={handleResetPin}
                 size={isMobile ? 'middle' : 'large'}
               >
                 <Form.Item
@@ -212,6 +266,49 @@ export default function LoginPage() {
                   />
                 </Form.Item>
 
+                <Form.Item
+                  label={t('auth.newPinLabel')}
+                  name="newPin"
+                  rules={[
+                    { required: true, message: t('auth.pinRequired') },
+                    { pattern: /^\d{4}$/, message: t('auth.pinFormat') },
+                  ]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined style={{ color: '#999' }} />}
+                    placeholder={t('auth.pinPlaceholder')}
+                    disabled={loading}
+                    style={{ borderRadius: 8, letterSpacing: 4 }}
+                    maxLength={4}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  label={t('auth.confirmPinLabel')}
+                  name="confirmPin"
+                  dependencies={['newPin']}
+                  rules={[
+                    { required: true, message: t('auth.pinRequired') },
+                    { pattern: /^\d{4}$/, message: t('auth.pinFormat') },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value || getFieldValue('newPin') === value) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error(t('auth.pinMismatch')));
+                      },
+                    }),
+                  ]}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined style={{ color: '#999' }} />}
+                    placeholder={t('auth.pinPlaceholder')}
+                    disabled={loading}
+                    style={{ borderRadius: 8, letterSpacing: 4 }}
+                    maxLength={4}
+                  />
+                </Form.Item>
+
                 <Form.Item style={{ marginBottom: 0 }}>
                   <div
                     style={{
@@ -227,7 +324,7 @@ export default function LoginPage() {
                       loading={loading}
                       style={{ borderRadius: 8, height: isMobile ? 40 : 44 }}
                     >
-                      {t('auth.verify')}
+                      {t('auth.updatePin')}
                     </Button>
                     <Button
                       type="text"
