@@ -254,6 +254,8 @@ export default function LoginPage() {
                   rules={[{ required: true, message: t('auth.codeRequired') }]}
                 >
                   <Input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     prefix={<LockOutlined style={{ color: '#999' }} />}
                     placeholder={t('auth.codePlaceholder')}
                     disabled={loading}
@@ -275,6 +277,8 @@ export default function LoginPage() {
                   ]}
                 >
                   <Input.Password
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     prefix={<LockOutlined style={{ color: '#999' }} />}
                     placeholder={t('auth.pinPlaceholder')}
                     disabled={loading}
@@ -301,6 +305,8 @@ export default function LoginPage() {
                   ]}
                 >
                   <Input.Password
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     prefix={<LockOutlined style={{ color: '#999' }} />}
                     placeholder={t('auth.pinPlaceholder')}
                     disabled={loading}

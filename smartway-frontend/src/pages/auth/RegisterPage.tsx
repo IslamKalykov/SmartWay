@@ -1,9 +1,9 @@
 // src/pages/auth/RegisterPage.tsx
 import { useState } from 'react';
 import {
-  Card, Typography, Form, Input, Button, Space, message, Divider, Switch
+  Card, Typography, Form, Input, Button, Space, message, Divider, Switch, Alert
 } from 'antd';
-import { PhoneOutlined, LockOutlined, ArrowLeftOutlined, UserOutlined, CarOutlined } from '@ant-design/icons';
+import { PhoneOutlined, LockOutlined, ArrowLeftOutlined, UserOutlined, CarOutlined, SendOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
@@ -11,6 +11,8 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { sendOtp, verifyOtpWithPayload } from '../../api/auth';
 
 const { Title, Text } = Typography;
+
+const TELEGRAM_BOT_URL = 'https://t.me/smartway2023_bot';
 
 export default function RegisterPage() {
   const { t } = useTranslation();
@@ -77,6 +79,10 @@ export default function RegisterPage() {
     otpForm.resetFields();
   };
 
+  const handleOpenBot = () => {
+    window.open(TELEGRAM_BOT_URL, '_blank');
+  };
+
   return (
     <div
       style={{
@@ -96,7 +102,7 @@ export default function RegisterPage() {
         }}
         bodyStyle={{ padding: isMobile ? 20 : 32 }}
       >
-        <Space orientation="vertical" size={24} style={{ width: '100%' }}>
+        <Space direction="vertical" size={24} style={{ width: '100%' }}>
           {/* Header */}
           <div style={{ textAlign: 'center' }}>
             <Title level={isMobile ? 4 : 3} style={{ marginBottom: 8 }}>
@@ -106,6 +112,40 @@ export default function RegisterPage() {
               {step === 'phone' ? t('auth.enterPhone') : t('auth.enterCode')}
             </Text>
           </div>
+
+          {/* Telegram Bot Info */}
+          {step === 'phone' && (
+            <Alert
+              type="info"
+              showIcon
+              icon={<SendOutlined style={{ color: '#0088cc' }} />}
+              style={{ borderRadius: 8 }}
+              message={
+                <Text strong style={{ color: '#0088cc' }}>
+                  {t('auth.telegramBotTitle', 'Активируйте Telegram бота')}
+                </Text>
+              }
+              description={
+                <Space direction="vertical" size={12} style={{ width: '100%', marginTop: 8 }}>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    {t('auth.telegramBotDescription', 'Для получения кода подтверждения и уведомлений о поездках сначала активируйте нашего Telegram бота.')}
+                  </Text>
+                  <Button
+                    type="primary"
+                    icon={<SendOutlined />}
+                    onClick={handleOpenBot}
+                    style={{
+                      background: '#0088cc',
+                      borderColor: '#0088cc',
+                      borderRadius: 8,
+                    }}
+                  >
+                    {t('auth.openTelegramBot', 'Открыть бота')}
+                  </Button>
+                </Space>
+              }
+            />
+          )}
 
           {/* Phone Step */}
           {step === 'phone' && (
@@ -127,6 +167,9 @@ export default function RegisterPage() {
                 ]}
               >
                 <Input
+                  inputMode="tel"
+                  type="tel"
+                  autoComplete="tel"
                   prefix={<PhoneOutlined style={{ color: '#999' }} />}
                   placeholder={t('auth.phonePlaceholder')}
                   disabled={loading}
@@ -203,6 +246,11 @@ export default function RegisterPage() {
                     {phone}
                   </Text>
                 </div>
+                <div style={{ marginTop: 8 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {t('auth.checkTelegramBot', 'Проверьте сообщения в Telegram боте')}
+                  </Text>
+                </div>
               </div>
 
               <Form
@@ -217,6 +265,8 @@ export default function RegisterPage() {
                   rules={[{ required: true, message: t('auth.codeRequired') }]}
                 >
                   <Input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     prefix={<LockOutlined style={{ color: '#999' }} />}
                     placeholder={t('auth.codePlaceholder')}
                     disabled={loading}
@@ -234,6 +284,8 @@ export default function RegisterPage() {
                   ]}
                 >
                   <Input.Password
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     prefix={<LockOutlined style={{ color: '#999' }} />}
                     placeholder={t('auth.pinPlaceholder')}
                     disabled={loading}
@@ -260,6 +312,8 @@ export default function RegisterPage() {
                   ]}
                 >
                   <Input.Password
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     prefix={<LockOutlined style={{ color: '#999' }} />}
                     placeholder={t('auth.pinPlaceholder')}
                     disabled={loading}
@@ -269,7 +323,7 @@ export default function RegisterPage() {
                 </Form.Item>
 
                 <Form.Item style={{ marginBottom: 0 }}>
-                  <Space orientation="vertical" style={{ width: '100%' }} size={12}>
+                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
                     <Button
                       type="primary"
                       htmlType="submit"
